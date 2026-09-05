@@ -31,8 +31,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 @PluginDescriptor(
 	name = "Overhead Scale & Color",
 	description = "Cosmetic only. Shrinks your own overhead prayer icon and rings it in a color by prayer type.",
-	tags = {"overhead", "prayer", "icon", "scale", "color", "colour", "accessibility"},
-	enabledByDefault = false
+	tags = {"overhead", "prayer", "icon", "scale", "color", "colour", "accessibility"}
 )
 public class OverheadScaleColorPlugin extends Plugin
 {
