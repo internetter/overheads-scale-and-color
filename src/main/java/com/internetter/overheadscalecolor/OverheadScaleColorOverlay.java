@@ -41,9 +41,10 @@ public class OverheadScaleColorOverlay extends Overlay
 	private static final Color RING_OUTLINE = new Color(0, 0, 0, 180);
 
 	/** Ring slots. Also index the color and stroke arrays. */
-	private static final int MELEE = 0;
-	private static final int RANGED = 1;
-	private static final int MAGIC = 2;
+	static final int MELEE = 0;
+	static final int RANGED = 1;
+	static final int MAGIC = 2;
+	static final int NO_RING = -1;
 
 	private final Client client;
 	private final OverheadScaleColorConfig config;
@@ -73,25 +74,55 @@ public class OverheadScaleColorOverlay extends Overlay
 		setPosition(OverlayPosition.DYNAMIC);
 	}
 
+	/**
+	 * Invalidation is requested from the AWT event thread (config changes and plugin lifecycle both
+	 * arrive there) but the caches are read and written by {@link #render(Graphics2D)} on the client
+	 * thread. Clearing them directly would be concurrent mutation of a plain HashMap, so these only
+	 * raise a flag and the client thread does the actual clearing at the top of the next frame.
+	 */
+	private volatile boolean invalidatePending;
+	private volatile boolean fullInvalidatePending;
+
 	/** Config changed: drop derived state, keep the native sprites. */
 	void invalidate()
 	{
-		scaledCache.clear();
-		ringStateValid = false;
+		invalidatePending = true;
 	}
 
-	/** Plugin shutting down: drop everything. */
+	/**
+	 * Plugin stopping: drop everything. The plugin instance and this overlay survive a
+	 * disable/enable cycle in RuneLite, so the sprites are dropped too rather than left to go stale.
+	 */
 	void invalidateAll()
 	{
-		scaledCache.clear();
-		nativeCache.clear();
-		ringStateValid = false;
-		missingLogged = 0;
+		fullInvalidatePending = true;
+	}
+
+	/** Must only be called on the client thread. */
+	private void applyPendingInvalidation()
+	{
+		if (fullInvalidatePending)
+		{
+			fullInvalidatePending = false;
+			invalidatePending = false;
+			nativeCache.clear();
+			scaledCache.clear();
+			ringStateValid = false;
+			missingLogged = 0;
+		}
+		else if (invalidatePending)
+		{
+			invalidatePending = false;
+			scaledCache.clear();
+			ringStateValid = false;
+		}
 	}
 
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
+		applyPendingInvalidation();
+
 		final Player local = client.getLocalPlayer();
 		if (local == null)
 		{
@@ -249,7 +280,7 @@ public class OverheadScaleColorOverlay extends Overlay
 	 * non-protection prayers (Smite, Retribution, Redemption, Wrath, Soul Split) get no ring rather
 	 * than an invented color.
 	 */
-	private static int ringSlotFor(HeadIcon icon)
+	static int ringSlotFor(HeadIcon icon)
 	{
 		switch (icon)
 		{
@@ -263,7 +294,7 @@ public class OverheadScaleColorOverlay extends Overlay
 			case DEFLECT_MAGE:
 				return MAGIC;
 			default:
-				return -1;
+				return NO_RING;
 		}
 	}
 
