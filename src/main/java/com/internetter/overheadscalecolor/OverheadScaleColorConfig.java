@@ -9,15 +9,11 @@ import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
 
 /**
- * Plugin configuration. A few items here (debug markers, the interpolation toggle) exist for
- * on-screen comparison rather than for users, and should be reviewed before release.
- *
- * Group name was renamed from "overheadprayerscalerspike" while nothing had shipped. Renaming a
- * config group silently resets every user's saved settings, so this was the last free moment to
- * do it. See the Plugin Hub constraints in CLAUDE.md.
+ * Config keys are an API: renaming one after release silently resets every user's saved settings.
+ * Add to this interface sparingly -- see the "Scope" section of DESIGN.md.
  */
-@ConfigGroup(SpikeConfig.GROUP)
-public interface SpikeConfig extends Config
+@ConfigGroup(OverheadScaleColorConfig.GROUP)
+public interface OverheadScaleColorConfig extends Config
 {
 	String GROUP = "overheadscalecolor";
 
@@ -28,48 +24,8 @@ public interface SpikeConfig extends Config
 	)
 	String RING_SECTION = "ring";
 
-	// ---- Suppression: stop the client drawing its own overhead icon ----
-
 	@ConfigItem(
 		position = 1,
-		keyName = "suppress2D",
-		name = "Hide the vanilla icon",
-		description = "Stop the client drawing its own overhead icon, so only the scaled one shows. Turning this off leaves both drawn on top of each other."
-	)
-	default boolean suppress2D()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		position = 2,
-		keyName = "suppressOnlyWhenIconActive",
-		name = "Only while praying",
-		description =
-			"The client draws your icon, healthbar, hitsplats, overhead chat and name in one pass, and it can only be suppressed as a whole -- "
-				+ "so hiding the vanilla icon also hides those. With this ON that cost applies only while an overhead prayer is active; "
-				+ "the rest of the time everything is normal. Turning it OFF hides them permanently and gains nothing. Leave it on."
-	)
-	default boolean suppressOnlyWhenIconActive()
-	{
-		return true;
-	}
-
-	// ---- Placement and size ----
-
-	@ConfigItem(
-		position = 3,
-		keyName = "drawOverlay",
-		name = "Draw replacement icon",
-		description = "Draw our own head icon in an ABOVE_SCENE overlay."
-	)
-	default boolean drawOverlay()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		position = 4,
 		keyName = "scale",
 		name = "Scale %",
 		description = "Rendered size as a percent of native size. 100 is vanilla size; the floor is 10 because the source sprite is only ~30px tall and anything smaller stops rendering at all."
@@ -81,58 +37,48 @@ public interface SpikeConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 5,
-		keyName = "anchorBottom",
-		name = "Anchor bottom-center",
-		description = "On: keep the icon's bottom edge fixed as it shrinks. Off: keep its center fixed (raw getCanvasImageLocation)."
+		position = 2,
+		keyName = "heightOffset",
+		name = "Height offset",
+		description = "Raises the icon above your head. The player's logical height alone sits it too low, so the default is 40."
 	)
-	default boolean anchorBottom()
+	@Range(min = -200, max = 200)
+	default int heightOffset()
+	{
+		return 40;
+	}
+
+	@ConfigItem(
+		position = 3,
+		keyName = "hideOnlyWhilePraying",
+		name = "Only hide while praying",
+		description =
+			"The client draws your icon, healthbar, hitsplats, overhead chat and name in a single pass that can only be suppressed as a whole, "
+				+ "so replacing the icon also hides those. With this ON that cost applies only while an overhead prayer is active, and everything "
+				+ "is normal the rest of the time. Turn it OFF only if you find the switch-over distracting."
+	)
+	default boolean hideOnlyWhilePraying()
 	{
 		return true;
 	}
 
 	@ConfigItem(
-		position = 6,
-		keyName = "zPadding",
-		name = "Height offset",
-		description = "Added to the player's logical height to tune vertical placement. Default 40 sits the icon near its vanilla position rather than down on the player's head."
-	)
-	@Range(min = -200, max = 200)
-	default int zPadding()
-	{
-		return 40;
-	}
-
-	// ---- Downscale quality and debugging ----
-
-	@ConfigItem(
-		position = 7,
+		position = 4,
 		keyName = "smoothScaling",
-		name = "Bilinear downscale",
-		description = "On: bilinear. Off: nearest-neighbour. Compare both on screen before choosing a default."
+		name = "Smooth scaling",
+		description = "Bilinear downscaling. Turn off for nearest-neighbour, which keeps hard pixel edges."
 	)
 	default boolean smoothScaling()
 	{
 		return true;
 	}
 
-	@ConfigItem(
-		position = 8,
-		keyName = "debugMarkers",
-		name = "Debug markers",
-		description = "Draw the icon bounding box and a crosshair at the raw projected point."
-	)
-	default boolean debugMarkers()
-	{
-		return false;
-	}
-
-	// ---- Coloured ring ----
+	// ---- Ring ----
 	//
 	// Only the three protection prayers and their Deflect equivalents get a ring. Combined
 	// overheads (RANGE_MAGE, RANGE_MELEE, MAGE_MELEE, RANGE_MAGE_MELEE) have no single correct
-	// colour, and Smite / Retribution / Redemption / Wrath / Soul Split are not protection
-	// prayers at all. Those render ringless rather than guessing.
+	// color, and Smite / Retribution / Redemption / Wrath / Soul Split are not protection prayers
+	// at all. Those render ringless rather than guessing.
 
 	@ConfigItem(
 		position = 21,
@@ -150,7 +96,7 @@ public interface SpikeConfig extends Config
 		position = 22,
 		keyName = "ringThickness",
 		name = "Thickness",
-		description = "Ring thickness in pixels. Fixed in screen pixels, so it does not thin out as the icon shrinks.",
+		description = "Ring thickness in screen pixels. Constant across scales, so it does not thin out as the icon shrinks.",
 		section = RING_SECTION
 	)
 	@Range(min = 1, max = 6)
@@ -176,7 +122,7 @@ public interface SpikeConfig extends Config
 		position = 24,
 		keyName = "ringOutline",
 		name = "Dark outline",
-		description = "Outline the ring in dark grey. Strongly recommended -- without it green vanishes on grass and blue vanishes on water.",
+		description = "Outline the ring in dark grey. Recommended -- without it green is hard to see on grass and blue is hard to see on water.",
 		section = RING_SECTION
 	)
 	default boolean ringOutline()

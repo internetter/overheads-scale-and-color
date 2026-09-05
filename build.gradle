@@ -13,8 +13,8 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = '1.12.38'
-def pluginMainClass = 'com.internetter.overheadscalecolor.SpikePluginTest'
+def runeLiteVersion = 'latest.release'
+def pluginMainClass = 'com.internetter.overheadscalecolor.OverheadScaleColorPluginTest'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion

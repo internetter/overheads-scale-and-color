@@ -16,9 +16,17 @@ The game client draws overhead icons at a fixed size and offers no way to resize
 plugin suppresses the client's 2D draw pass for your own player and redraws the icon itself, at
 whatever scale you pick.
 
-**That suppression is coarse**, and it is the plugin's main trade-off: it hides your player's other
-2D elements too. Exactly which ones is not yet documented here, because it has not been measured
-carefully enough to state — see below.
+**That suppression is coarse, and it is the plugin's one real trade-off.** The client draws your
+icon, healthbar, hitsplats, overhead chat and name in a single pass that can only be suppressed as
+a whole — there is no way to blank just the icon, because `Player` exposes `getOverheadIcon()` with
+no setter. So replacing the icon hides those too.
+
+By default this is limited to the moments an overhead prayer is actually active ("Only hide while
+praying"), and everything is normal the rest of the time.
+
+The precise list of what disappears is inferred rather than measured — RuneLite's own Entity Hider
+describes the same suppression only as "the local player's 2D elements". See the verification
+section below.
 
 ## Options
 
@@ -26,8 +34,8 @@ carefully enough to state — see below.
 |---|---|---|
 | Scale % | 50 | Size as a percent of native. Floor is 10 — the source sprite is ~30px, below that it stops rendering. |
 | Height offset | 40 | Vertical placement. Raise it if the icon sits on your head. |
-| Anchor bottom-center | on | Keeps the icon's bottom edge fixed as it shrinks. |
-| Bilinear downscale | on | Off gives nearest-neighbour. |
+| Only hide while praying | on | Limits the trade-off below to the moments an overhead is actually active. |
+| Smooth scaling | on | Off gives nearest-neighbour, which keeps hard pixel edges. |
 | **Ring** | | |
 | Show ring | on | |
 | Thickness | 2 | Screen pixels — stays constant as the icon shrinks. |
@@ -75,21 +83,28 @@ Being specific about this because "it compiles" and "it works" are different cla
 - The icon is suppressed and the replacement is drawn in its place.
 - Sprites load from the game cache and show the correct art.
 - The icon tracks the player and scales.
+- The ring renders, in the Standard palette, at the default thickness and gap.
+- A full session with no exceptions from the render callback or the overlay, including on the
+  login screen where `getLocalPlayer()` is null.
 
-**Verified against the RuneLite 1.12.38 jars, but not on screen:**
+**Verified against the RuneLite jars (1.12.38), but not on screen:**
 
 - Draw vetoes from multiple plugins compose as a logical AND, so running this alongside Entity
   Hider should not flicker or conflict.
+- There is no way to hide the icon alone: `Player` has no `setOverheadIcon`, and `Client` has no
+  hide flags. The coarse veto is the only mechanism available.
 
 **Not yet verified at all:**
 
+- **The three color-vision-deficiency palettes and the distinct-styles option.** Written and
+  compiled, never rendered — only the Standard palette has been seen.
 - The full list of what else the 2D suppression hides (healthbar, hitsplats, overhead chat,
   username).
 - That scale 100 with offset 0 matches vanilla placement exactly.
 - Camera zoom and rotation, fixed/resizable/stretched modes, GPU plugin on and off.
 - Behaviour across world hop and logout/login.
 - That every `HeadIcon` maps to the right sprite. Smite, Retribution and Redemption are the easy
-  ones to get wrong.
+  ones to get wrong — a mistake there produces a plausible wrong icon rather than an obvious one.
 
 ## Building
 

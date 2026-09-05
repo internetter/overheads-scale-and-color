@@ -3,11 +3,11 @@ package com.internetter.overheadscalecolor;
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class SpikePluginTest
+public class OverheadScaleColorPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(SpikePlugin.class);
+		ExternalPluginManager.loadBuiltin(OverheadScaleColorPlugin.class);
 		RuneLite.main(args);
 	}
 }

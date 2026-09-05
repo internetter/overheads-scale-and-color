@@ -15,12 +15,13 @@ Formerly "Overhead Prayer Scaler". Renamed during Phase 0, before anything shipp
    promote something from the second list to a factual claim without a human looking at a screen.
 2. **No reflection into client internals.** Plugin Hub rejects it. Public `runelite-api` and
    `runelite-client` surfaces only.
-3. **Verify every API signature against the pinned version before using it.** This project pins
-   `net.runelite:client:1.12.38`. Check the resolved jars on disk with `javap`, or the javadoc for
-   that exact version. Treat any method named in prose as a hypothesis. If something does not
-   exist, say so and stop — do not substitute a call that merely compiles. *This is not
-   hypothetical: the original design was built on `Client#setLocalPlayerHidden2D`, which does not
-   exist.*
+3. **Verify every API signature against the resolved jars before using it.** `build.gradle` uses
+   `latest.release`, as the Plugin Hub requires — so the target moves. Find what it actually
+   resolved to (`./gradlew dependencies --configuration compileClasspath | grep runelite:client`)
+   and check that jar with `javap`. Everything here was verified against **1.12.38**; re-check when
+   it moves. Treat any method named in prose as a hypothesis. If something does not exist, say so
+   and stop — do not substitute a call that merely compiles. *This is not hypothetical: the
+   original design was built on `Client#setLocalPlayerHidden2D`, which does not exist.*
 4. **Clean up in `shutDown()`.** Unregister the render callback, remove the overlay, drop caches.
    The current design toggles no client state, so there is no flag to restore — if that ever
    changes, restoring it becomes mandatory.
@@ -49,8 +50,8 @@ Two core options plus a ring section. Do not add more without a reason that surv
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `scale` | int 10–100 | 50 | percent of native size |
-| `zPadding` | int | 40 | height offset; tuned on screen, not derived |
-| `anchorBottom` | bool | true | keep bottom edge fixed as it shrinks |
+| `heightOffset` | int | 40 | tuned on screen, not derived |
+| `hideOnlyWhilePraying` | bool | true | DESIGN.md approach A2; restores 2D elements when no overhead is active |
 | `smoothScaling` | bool | true | bilinear vs nearest-neighbour |
 | `ringEnabled` | bool | true | |
 | `ringThickness` | int 1–6 | 2 | screen pixels, constant across scales |
@@ -62,9 +63,14 @@ Two core options plus a ring section. Do not add more without a reason that surv
 
 The master on/off is the plugin toggle itself. Do not add a redundant "enabled" boolean.
 
+Suppression, bottom-centre anchoring, and drawing the replacement are **not** configurable. They
+were toggles during the spike so the alternatives could be compared on screen; every "off" state
+is either useless (no replacement drawn) or actively broken (vanilla and scaled icons stacked on
+each other). Deleted before submission rather than shipped as traps.
+
 **Config keys are an API.** Renaming one after release silently wipes users' settings. The group
-was renamed to `overheadscalecolor` during Phase 0 precisely because that was the last moment it
-was free.
+was renamed to `overheadscalecolor`, and `zPadding` to `heightOffset`, before anything shipped —
+the last moment either was free.
 
 ## Accessibility
 
@@ -78,15 +84,12 @@ regress this. Reasoning and the full palette table are in `DESIGN.md` Step 5.
 
 ```
 src/main/java/com/internetter/overheadscalecolor/
-  SpikePlugin.java     // lifecycle, render callback veto, dev-mode probe commands
-  SpikeConfig.java     // @ConfigGroup interface
-  SpikeOverlay.java    // render(), anchor math, ring drawing, icon cache
-  RingPalette.java     // color presets incl. CVD-safe palettes
-runelite-plugin.properties        // hub manifest; build=standard
+  OverheadScaleColorPlugin.java    // lifecycle, render callback veto
+  OverheadScaleColorConfig.java    // @ConfigGroup interface
+  OverheadScaleColorOverlay.java   // render(), anchor math, ring drawing, icon cache
+  RingPalette.java                 // color presets incl. CVD-safe palettes
+runelite-plugin.properties         // hub manifest; build=standard
 ```
-
-The `Spike*` class names are Phase 0 holdovers. They should be renamed when the spike formally
-closes — deliberately not done yet, so nothing reads as more finished than it is.
 
 ## Plugin Hub constraints
 
@@ -113,8 +116,8 @@ substantial.
 
 - Java 11. RuneLite house style: Lombok `@Slf4j`, `@Inject` field injection, tabs, Allman braces.
 - Use `net.runelite.api.gameval` constants rather than magic numbers.
-- Log at `debug` in anything per-frame or per-tick. The `[spike]` probe commands log at `info`
-  deliberately and should drop to debug or be deleted when the spike closes.
+- Log at `debug` in anything per-frame or per-tick, and dedupe it — the overlay uses a bitmask so a
+  missing sprite is logged once per icon rather than once per frame.
 - Null-check `client.getLocalPlayer()` everywhere. It is null on the login screen and during
   loading, and `render()` runs then.
 

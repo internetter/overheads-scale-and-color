@@ -85,8 +85,9 @@ Options considered:
 
 **A2 dominates A1** and the choice does not depend on measuring the collateral first. While a
 prayer is active the two are identical; the rest of the time A2 is completely normal and A1 is
-still hiding things for no benefit. A1 is strictly worse, so A2 ships on by default and A1 remains
-only as an escape hatch if the toggling itself ever proves visually noisy.
+still hiding things for no benefit. A1 is strictly worse, so A2 ships on by default. A1 survives
+only as the `hideOnlyWhilePraying` toggle, kept as an escape hatch in case the switch-over between
+states turns out to be visually noisy in a way static reasoning cannot predict.
 
 What measurement would still change: if the collateral turns out to be trivial (say hitsplats
 survive), the toggle stops mattering. If it is severe, A3 becomes worth reconsidering as a separate
@@ -130,7 +131,8 @@ toward the head — the opposite of the predicted bug. Bottom-centre anchoring i
 y = getCanvasImageLocation(...).getY() + (nativeHeight - scaledHeight) / 2;
 ```
 
-which is the identity at scale 100. Both modes are exposed so they can be compared on screen.
+which is the identity at scale 100. Centre anchoring was a toggle during the spike so the two could
+be compared on screen; bottom-centre won and the toggle was removed rather than shipped.
 
 #### Height offset
 
@@ -155,8 +157,8 @@ remains the fallback if the mapping ever drifts, but is not currently needed.
 
 - Cache one `BufferedImage` per `(HeadIcon, scalePercent, interpolation)`. Invalidate on config
   change. Nothing is built in the render path.
-- `TYPE_INT_ARGB`, bilinear interpolation by default. Nearest-neighbour is exposed as a toggle for
-  on-screen comparison.
+- `TYPE_INT_ARGB`, bilinear interpolation by default. Nearest-neighbour stays a user toggle — it is
+  a genuine preference at these sizes, not a debugging aid.
 - **Floor the scale at 10%.** The source sprite is roughly 30px tall, so 1% is a third of a pixel:
   it does not render, it disappears. A slider that bottoms out at invisible is a hide toggle
   wearing a costume.
