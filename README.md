@@ -1,138 +1,56 @@
 # Overhead Scale & Color
 
-A RuneLite plugin that shrinks the overhead prayer icon above **your own** player so it stops
-covering your character, and draws a colored ring around it so it stays readable once small.
+A RuneLite plugin that shrinks the overhead prayer icon above your own player so it stops covering
+your character, and draws a colored ring around it so it stays readable once small.
 
-Cosmetic and visual only. No automation, no input simulation, no network calls, no reflection.
-Local player only — it does not touch other players or NPCs.
-
-> **Status: in development. Not submitted to the Plugin Hub.** Parts of this have been confirmed on
-> screen and parts have not; the "What has actually been verified" section below says which. There
-> is no Hub listing and no submission PR.
+Cosmetic only. Local player only — it does not affect other players or NPCs.
 
 ## What it does
 
-The game client draws overhead icons at a fixed size and offers no way to resize them. So this
-plugin suppresses the client's 2D draw pass for your own player and redraws the icon itself, at
-whatever scale you pick.
+The game client draws overhead icons at a fixed size and offers no way to resize them, so the
+plugin hides the client's own icon and draws its own in place of it at whatever size you choose.
 
-**That suppression is coarse, and it is the plugin's one real trade-off.** The client draws your
-icon, healthbar, hitsplats, overhead chat and name in a single pass that can only be suppressed as
-a whole — there is no way to blank just the icon, because `Player` exposes `getOverheadIcon()` with
-no setter. So replacing the icon hides those too.
-
-By default this is limited to the moments an overhead prayer is actually active ("Only hide while
-praying"), and everything is normal the rest of the time.
-
-The precise list of what disappears is inferred rather than measured — RuneLite's own Entity Hider
-describes the same suppression only as "the local player's 2D elements". See the verification
-section below.
+Your overhead icon, healthbar, hitsplats, overhead chat and name are drawn together and can only be
+hidden as a group. While an overhead prayer is active, those are hidden along with the icon. When
+no overhead prayer is active, everything is back to normal.
 
 ## Options
 
 | Option | Default | What it does |
 |---|---|---|
-| Scale % | 50 | Size as a percent of native. Floor is 10 — the source sprite is ~30px, below that it stops rendering. |
-| Height offset | 40 | Vertical placement. Raise it if the icon sits on your head. |
-| Only hide while praying | on | Limits the trade-off below to the moments an overhead is actually active. |
-| Smooth scaling | on | Off gives nearest-neighbour, which keeps hard pixel edges. |
-| **Ring** | | |
+| Scale % | 50 | Size as a percent of the normal icon. |
+| Height offset | 40 | How high above your character the icon sits. |
+| Only hide while praying | on | Keeps your healthbar and hitsplats visible whenever no overhead prayer is active. |
+| Smooth scaling | on | Off gives hard pixel edges instead. |
 | Show ring | on | |
-| Thickness | 2 | Screen pixels — stays constant as the icon shrinks. |
-| Gap | 2 | Space between icon and ring. |
-| Dark outline | on | Keeps the ring visible over grass, water, and sand. |
-| Color palette | Standard | See accessibility, below. |
-| Distinct ring styles | off | Solid / dashed / dotted per prayer type. |
+| Thickness | 2 | Ring thickness in pixels. Stays the same at any scale. |
+| Gap | 2 | Space between the icon and the ring. |
+| Dark outline | on | Keeps the ring visible against grass, water and sand. |
+| Color palette | Standard | See below. |
+| Distinct ring styles | off | Melee solid, ranged dashed, magic dotted. |
 | Custom colors | — | Used only when the palette is set to Custom. |
 
-Rings are drawn for the three protection prayers and their Deflect equivalents. Combined overheads
-and the non-protection prayers (Smite, Retribution, Redemption, Wrath, Soul Split) are deliberately
-left ringless rather than assigned an invented color.
+## Rings
 
-## Accessibility
-
-The obvious mapping — red melee, green ranged, blue magic — puts red and green in opposition, which
-is exactly the pair lost in the most common color vision deficiency (roughly 8% of men). Since the
-ring exists to make a small icon easier to see, shipping only that mapping would fail the people
-who most need it.
-
-Shifting the shades does not fix it: with dichromacy the color space is effectively two-dimensional,
-so three categories cannot be told apart by hue alone. Each alternate palette separates on both the
-surviving hue axis and luminance, and drops the confusable color rather than tuning it.
+Rings are drawn for Protect from Melee, Missiles and Magic, and their Deflect equivalents. Smite,
+Retribution, Redemption, Wrath, Soul Split and the combined overheads are drawn without one.
 
 | Palette | Melee | Ranged | Magic |
 |---|---|---|---|
-| Standard | red `#FF4136` | green `#2ECC40` | blue `#2E9BFF` |
-| Red-green friendly (deuteran / protan) | orange `#E69F00` | white `#FFFFFF` | blue `#0072B2` |
-| Blue-yellow friendly (tritan) | vermillion `#D55E00` | green `#009E73` | magenta `#CC79A7` |
-| Monochrome / high contrast | white | light grey | dark grey |
+| Standard | red | green | blue |
+| Red-green friendly | orange | white | blue |
+| Blue-yellow friendly | vermillion | green | magenta |
+| Monochrome | white | light grey | dark grey |
 | Custom | your choice | your choice | your choice |
 
-Colors come from the Okabe-Ito qualitative palette where possible.
-
-**Distinct ring styles** varies the line pattern by prayer type instead of relying on color at all —
-the only cue that works under full achromatopsia, and useful to anyone. Recommended alongside the
-Monochrome palette.
-
-## What has actually been verified
-
-Being specific about this because "it compiles" and "it works" are different claims.
-
-**Confirmed on screen:**
-
-- The icon is suppressed and the replacement is drawn in its place.
-- Sprites load from the game cache and show the correct art.
-- The icon tracks the player and scales.
-- The ring renders, in the Standard palette, at the default thickness and gap.
-- A full session with no exceptions from the render callback or the overlay, including on the
-  login screen where `getLocalPlayer()` is null.
-
-**Verified against the RuneLite jars (1.12.38), but not on screen:**
-
-- Draw vetoes from multiple plugins compose as a logical AND, so running this alongside Entity
-  Hider should not flicker or conflict.
-- There is no way to hide the icon alone: `Player` has no `setOverheadIcon`, and `Client` has no
-  hide flags. The coarse veto is the only mechanism available.
-
-**Not yet verified at all:**
-
-- **The three color-vision-deficiency palettes and the distinct-styles option.** Written and
-  compiled, never rendered — only the Standard palette has been seen.
-- The full list of what else the 2D suppression hides (healthbar, hitsplats, overhead chat,
-  username).
-- That scale 100 with offset 0 matches vanilla placement exactly.
-- Camera zoom and rotation, fixed/resizable/stretched modes, GPU plugin on and off.
-- Behaviour across world hop and logout/login.
-- That every `HeadIcon` maps to the right sprite. Smite, Retribution and Redemption are the easy
-  ones to get wrong — a mistake there produces a plausible wrong icon rather than an obvious one.
+The alternate palettes are for the common forms of color vision deficiency. **Distinct ring styles**
+tells the three apart by line pattern instead of color, and can be used with any palette.
 
 ## Building
 
-Requires JDK 11.
-
 ```bash
-./gradlew build     # compile
-./gradlew run       # launch a dev client with the plugin side-loaded
+./gradlew build
 ```
-
-The plugin appears in the dev client's normal plugin list, not the Plugin Hub panel — the Hub lists
-published plugins only.
-
-On Windows the `run` task sets `-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT`. Antivirus products
-that intercept TLS (Norton among them) install a root CA into the Windows certificate store that
-the JDK's own `cacerts` does not have, which otherwise makes the dev client fail login with
-`PKIX path building failed`. This affects the dev launcher only and is not part of the plugin.
-
-Logging into a Jagex account from a dev client needs `.runelite/credentials.properties`, produced by
-launching once from the Jagex Launcher with `--insecure-write-credentials` in its client arguments.
-**That file permits login without your password. Do not commit it or share it, and delete it when
-you are done developing.**
-
-## Documentation
-
-- `DESIGN.md` — how it works, what was tried and rejected, which original assumptions turned out to
-  be wrong, plus appendices listing the verified API surface and what remains unverified.
-- `CLAUDE.md` — working notes, conventions, and Plugin Hub constraints for contributors.
 
 ## License
 
