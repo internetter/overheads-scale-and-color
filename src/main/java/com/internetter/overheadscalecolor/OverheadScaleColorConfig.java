@@ -42,9 +42,9 @@ public interface OverheadScaleColorConfig extends Config
 		position = 1,
 		keyName = "scale",
 		name = "Scale %",
-		description = "Shrink mode. Size as a percent of the normal icon. The floor is 10 because the source sprite is 24px tall and anything smaller stops rendering at all."
+		description = "Size of the indicator as a percent of the normal icon -- the ring in Ring only mode, the icon in Shrink mode. Above 100 the shrink-mode icon is enlarged and will look soft, since the source sprite is only 24px."
 	)
-	@Range(min = 10, max = 100)
+	@Range(min = 10, max = 250)
 	default int scale()
 	{
 		return 50;

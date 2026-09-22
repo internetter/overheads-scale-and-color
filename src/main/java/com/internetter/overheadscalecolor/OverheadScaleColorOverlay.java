@@ -227,13 +227,25 @@ public class OverheadScaleColorOverlay extends Overlay
 			return;
 		}
 
-		// Ring-only draws no icon at all -- the ring is the indicator. The native sprite is still
-		// used to size the ring so it stays a sensible diameter.
-		final BufferedImage img = shrink
-			? scaled(icon.ordinal(), nativeImg, config.scale(), config.smoothScaling())
-			: nativeImg;
-
 		final int zOffset = local.getLogicalHeight() + config.heightOffset();
+
+		if (!shrink)
+		{
+			// Ring-only: no icon is drawn, so the ring is sized straight from Scale % rather than
+			// from a sprite, and centred on the projected point.
+			final Point centre = Perspective.localToCanvas(client, lp,
+				client.getTopLevelWorldView().getPlane(), zOffset);
+			if (centre == null || !config.ringEnabled())
+			{
+				return;
+			}
+
+			final int base = Math.max(1, nativeImg.getWidth() * config.scale() / 100);
+			drawRingAt(graphics, icon, centre.getX(), centre.getY(), base / 2 + config.ringGap());
+			return;
+		}
+
+		final BufferedImage img = scaled(icon.ordinal(), nativeImg, config.scale(), config.smoothScaling());
 
 		final Point p = Perspective.getCanvasImageLocation(client, lp, img, zOffset);
 		if (p == null)
@@ -249,10 +261,7 @@ public class OverheadScaleColorOverlay extends Overlay
 			drawRing(graphics, icon, x, y, img.getWidth(), img.getHeight());
 		}
 
-		if (shrink)
-		{
-			graphics.drawImage(img, x, y, null);
-		}
+		graphics.drawImage(img, x, y, null);
 	}
 
 	/**
@@ -309,6 +318,11 @@ public class OverheadScaleColorOverlay extends Overlay
 	 */
 	private void drawRing(Graphics2D graphics, HeadIcon icon, int x, int y, int w, int h)
 	{
+		drawRingAt(graphics, icon, x + w / 2, y + h / 2, Math.max(w, h) / 2 + config.ringGap());
+	}
+
+	private void drawRingAt(Graphics2D graphics, HeadIcon icon, int cx, int cy, int radius)
+	{
 		final int slot = ringSlotFor(icon);
 		if (slot < 0)
 		{
@@ -320,10 +334,9 @@ public class OverheadScaleColorOverlay extends Overlay
 			refreshRingState();
 		}
 
-		final int radius = Math.max(w, h) / 2 + config.ringGap();
 		final int diameter = radius * 2;
-		final int left = x + w / 2 - radius;
-		final int top = y + h / 2 - radius;
+		final int left = cx - radius;
+		final int top = cy - radius;
 
 		final Object priorAA = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
 		final Stroke priorStroke = graphics.getStroke();
