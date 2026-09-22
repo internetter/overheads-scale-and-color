@@ -16,16 +16,12 @@ package com.internetter.overheadscalecolor;
 public enum OverheadMode
 {
 	/**
-	 * Leave the client's icon alone and draw the ring around it. Nothing is hidden: healthbar,
-	 * hitsplats, overhead chat, name and their timing are all untouched.
+	 * Hide the client's icon and show only the coloured ring. The ring itself is the indicator of
+	 * which protection prayer is active, so nothing needs to line up with anything.
 	 */
 	RING_ONLY("Ring only"),
 
-	/**
-	 * Replace the icon with a resized copy. This hides your healthbar, hitsplats, overhead chat and
-	 * name while an overhead prayer is active, because the client draws them in one pass with the
-	 * icon and offers no finer control.
-	 */
+	/** Hide the client's icon and draw a resized copy of it, with the ring around it. */
 	SHRINK("Shrink icon");
 
 	private final String label;

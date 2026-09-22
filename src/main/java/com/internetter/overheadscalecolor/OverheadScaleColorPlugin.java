@@ -135,15 +135,6 @@ public class OverheadScaleColorPlugin extends Plugin
 	 */
 	private boolean shouldDraw(Renderable renderable, boolean drawingUI)
 	{
-		// Ring-only mode suppresses nothing at all: the ring is drawn by an overlay on top of
-		// the scene, so the client keeps drawing its icon, healthbar, hitsplats and their timing
-		// untouched. Only resizing needs the client's icon gone, and the client gives no way to
-		// remove it without taking the rest of the 2D pass with it.
-		if (config.mode() != OverheadMode.SHRINK)
-		{
-			return true;
-		}
-
 		if (!drawingUI)
 		{
 			return true;

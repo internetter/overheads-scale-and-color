@@ -189,10 +189,9 @@ public class OverheadScaleColorOverlay extends Overlay
 		final HeadIcon icon = local.getOverheadIcon();
 		final boolean shrink = config.mode() == OverheadMode.SHRINK;
 
-		// Whether the client's 2D pass is currently being vetoed. Everything it would have drawn --
-		// health bar, hitsplats, skull -- has to be put back by us for exactly this period, and that
-		// is not the same condition as "an overhead icon is showing".
-		final boolean suppressing = shrink && (!config.hideOnlyWhilePraying() || icon != null);
+		// Both modes hide the client's icon, so both owe it the rest of the 2D pass back. This is not
+		// the same condition as "an overhead icon is showing".
+		final boolean suppressing = !config.hideOnlyWhilePraying() || icon != null;
 
 		if (icon != null)
 		{
@@ -228,16 +227,13 @@ public class OverheadScaleColorOverlay extends Overlay
 			return;
 		}
 
-		// In ring-only mode the client is still drawing its own icon at native size, so the ring is
-		// sized against the native sprite and no replacement is drawn over the top.
+		// Ring-only draws no icon at all -- the ring is the indicator. The native sprite is still
+		// used to size the ring so it stays a sensible diameter.
 		final BufferedImage img = shrink
 			? scaled(icon.ordinal(), nativeImg, config.scale(), config.smoothScaling())
 			: nativeImg;
 
-		// Ring-only draws around the CLIENT's icon, which sits at a different height than a
-		// replacement we draw ourselves, so it needs its own offset.
-		final int zOffset = local.getLogicalHeight()
-			+ (shrink ? config.heightOffset() : config.ringOnlyOffset());
+		final int zOffset = local.getLogicalHeight() + config.heightOffset();
 
 		final Point p = Perspective.getCanvasImageLocation(client, lp, img, zOffset);
 		if (p == null)

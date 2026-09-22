@@ -29,10 +29,9 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "mode",
 		name = "Mode",
 		description =
-			"Ring only: the client draws its normal icon and the plugin just rings it. Nothing is hidden. "
-				+ "Shrink icon: the plugin draws its own smaller icon, which requires hiding the client's -- and the client "
-				+ "draws your healthbar, hitsplats, overhead chat and name in the same pass, so those are hidden too while "
-				+ "an overhead prayer is active. There is no way to hide the icon on its own."
+			"Ring only: hides the prayer icon and shows just the coloured ring, which becomes the indicator itself. "
+				+ "Shrink icon: hides the prayer icon and draws a smaller copy of it inside the ring. Either way the client's "
+				+ "own icon is hidden, which also hides your health bar, hitsplats and skull -- the plugin draws those back."
 	)
 	default OverheadMode mode()
 	{
@@ -43,7 +42,7 @@ public interface OverheadScaleColorConfig extends Config
 		position = 1,
 		keyName = "scale",
 		name = "Scale %",
-		description = "Size as a percent of the normal icon. Only applies in Shrink mode. The floor is 10 because the source sprite is 24px tall and anything smaller stops rendering at all."
+		description = "Shrink mode. Size as a percent of the normal icon. The floor is 10 because the source sprite is 24px tall and anything smaller stops rendering at all."
 	)
 	@Range(min = 10, max = 100)
 	default int scale()
@@ -55,7 +54,7 @@ public interface OverheadScaleColorConfig extends Config
 		position = 2,
 		keyName = "heightOffset",
 		name = "Height offset",
-		description = "Shrink mode. Height of the prayer icon above your head."
+		description = "Height of the ring, and the icon in Shrink mode, above your head."
 	)
 	@Range(min = -200, max = 200)
 	default int heightOffset()
@@ -68,7 +67,7 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "hideOnlyWhilePraying",
 		name = "Only hide while praying",
 		description =
-			"Shrink mode only. Limits the hiding to the moments an overhead prayer is actually active, so everything is normal "
+			"Limits the hiding to the moments an overhead prayer is actually active, so everything is normal "
 				+ "the rest of the time. Turn it OFF only if you find the switch-over distracting."
 	)
 	default boolean hideOnlyWhilePraying()
@@ -81,7 +80,7 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "restoreHealthBar",
 		name = "Restore health bar",
 		description =
-			"Shrink mode only. Hiding the client's icon also hides its health bar, so this draws one back using the client's "
+			"Hiding the client's icon also hides its health bar, so this draws one back using the client's "
 				+ "own bar sprites, appearing and disappearing exactly when the real one would."
 	)
 	default boolean restoreHealthBar()
@@ -106,7 +105,7 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "restoreHitsplats",
 		name = "Restore hitsplats",
 		description =
-			"Shrink mode only. Redraws the hitsplats hiding the icon removed. The client does not expose its hitsplat "
+			"Redraws the hitsplats hiding the icon removed. The client does not expose its hitsplat "
 				+ "graphics, so these are drawn rather than reproduced -- close, but not pixel-identical to normal ones."
 	)
 	default boolean restoreHitsplats()
@@ -124,21 +123,6 @@ public interface OverheadScaleColorConfig extends Config
 	default int hitsplatOffset()
 	{
 		return -75;
-	}
-
-	@ConfigItem(
-		position = 9,
-		keyName = "ringOnlyOffset",
-		name = "Ring height (Ring only)",
-		description =
-			"Ring only mode. Height of the ring, tuned separately from the Shrink icon height because the client draws its "
-				+ "own icon at a different height than the plugin draws a replacement. Once this value is right the ring stays "
-				+ "locked to the icon at every camera angle -- so check by rotating and zooming, not just from one view."
-	)
-	@Range(min = -200, max = 200)
-	default int ringOnlyOffset()
-	{
-		return 70;
 	}
 
 	@ConfigItem(
@@ -170,7 +154,7 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "restoreSkull",
 		name = "Restore PK skull",
 		description =
-			"Shrink mode only. Hiding the client's icon also hides your PK skull, so this draws it back from the client's own "
+			"Hiding the client's icon also hides your PK skull, so this draws it back from the client's own "
 				+ "skull sprite, scaled to match the prayer icon."
 	)
 	default boolean restoreSkull()
@@ -194,7 +178,7 @@ public interface OverheadScaleColorConfig extends Config
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
-		description = "Shrink mode only. Bilinear downscaling; turn off for nearest-neighbour, which keeps hard pixel edges."
+		description = "Shrink mode. Bilinear downscaling; turn off for nearest-neighbour, which keeps hard pixel edges."
 	)
 	default boolean smoothScaling()
 	{
@@ -237,10 +221,10 @@ public interface OverheadScaleColorConfig extends Config
 		position = 23,
 		keyName = "ringGap",
 		name = "Gap",
-		description = "Pixels between the icon edge and the ring.",
+		description = "Ring size. In Ring only mode this is what makes the ring bigger or smaller.",
 		section = RING_SECTION
 	)
-	@Range(min = 0, max = 10)
+	@Range(min = 0, max = 24)
 	default int ringGap()
 	{
 		return 2;
