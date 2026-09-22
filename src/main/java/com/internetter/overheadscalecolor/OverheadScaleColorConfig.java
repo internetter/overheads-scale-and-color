@@ -195,4 +195,42 @@ public interface OverheadScaleColorConfig extends Config
 	{
 		return new Color(0x2E9BFF);
 	}
+
+	// ------------------------------------------------------------------
+	// THROWAWAY TEST CODE -- branch spike/sprite-override only.
+	// Answers: do sprite overrides reach overhead icons? If they do, the
+	// plugin can shrink the icon without suppressing the 2D pass at all,
+	// and the healthbar/hitsplat cost disappears. Delete before merging.
+	// ------------------------------------------------------------------
+
+	@ConfigSection(
+		name = "TEST - sprite override",
+		description = "Throwaway probe. Not part of the plugin.",
+		position = 90
+	)
+	String TEST_SECTION = "test";
+
+	@ConfigItem(
+		position = 91,
+		keyName = "overrideTest",
+		name = "Enable override test",
+		description = "Turns OFF this plugin's icon suppression and replacement drawing, and instead registers a sprite override on the head-icon archive. If the overhead icon changes, overrides reach overhead icons.",
+		section = TEST_SECTION
+	)
+	default boolean overrideTest()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		position = 92,
+		keyName = "overrideSolidRed",
+		name = "Use a solid red square",
+		description = "On: override with an unmistakable red square. Off: override with a half-size copy of the real icon, which is the actual intended use.",
+		section = TEST_SECTION
+	)
+	default boolean overrideSolidRed()
+	{
+		return true;
+	}
 }

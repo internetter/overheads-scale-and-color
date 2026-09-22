@@ -123,6 +123,13 @@ public class OverheadScaleColorOverlay extends Overlay
 	{
 		applyPendingInvalidation();
 
+		// TEST ONLY (branch spike/sprite-override): draw nothing, so what is on screen is
+		// purely the client's own icon and any sprite override applied to it.
+		if (config.overrideTest())
+		{
+			return null;
+		}
+
 		final Player local = client.getLocalPlayer();
 		if (local == null)
 		{
