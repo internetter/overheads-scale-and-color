@@ -142,6 +142,18 @@ public interface OverheadScaleColorConfig extends Config
 	}
 
 	@ConfigItem(
+		position = 10,
+		keyName = "hitsplatSize",
+		name = "Hitsplat size",
+		description = "Width of the restored hitsplat stars in pixels."
+	)
+	@Range(min = 14, max = 44)
+	default int hitsplatSize()
+	{
+		return 26;
+	}
+
+	@ConfigItem(
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",

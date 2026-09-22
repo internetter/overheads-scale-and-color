@@ -5,7 +5,9 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.Stroke;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -454,37 +456,64 @@ public class OverheadScaleColorOverlay extends Overlay
 		final FontMetrics fm = graphics.getFontMetrics();
 
 		// Spread multiple splats horizontally, centred on the player, like the client does.
-		final int w = 22;
-		final int h = 15;
-		final int spacing = w + 2;
-		int x = anchor.getX() - ((live.length - 1) * spacing) / 2 - w / 2;
+		final int w = config.hitsplatSize();
+		final int h = (int) Math.round(w * 0.9);
+		final int spacing = w - w / 5;
+		int cx = anchor.getX() - ((live.length - 1) * spacing) / 2;
+
+		final Stroke priorStroke = graphics.getStroke();
+		graphics.setStroke(new BasicStroke(1f));
 
 		for (RestoredHitsplat splat : live)
 		{
-			final int y = anchor.getY() - h / 2;
+			final int cy = anchor.getY();
+			final Shape star = fourPointStar(cx, cy, w / 2.0, h / 2.0);
 
 			graphics.setColor(splat.color());
-			graphics.fillOval(x, y, w, h);
-			graphics.setColor(new Color(0, 0, 0, 160));
-			graphics.drawOval(x, y, w, h);
+			graphics.fill(star);
+			graphics.setColor(new Color(0, 0, 0, 170));
+			graphics.draw(star);
 
 			final String text = Integer.toString(splat.amount);
-			final int tx = x + (w - fm.stringWidth(text)) / 2;
-			final int ty = y + (h + fm.getAscent()) / 2 - 1;
+			final int tx = cx - fm.stringWidth(text) / 2;
+			final int ty = cy + fm.getAscent() / 2 - 1;
 
 			graphics.setColor(Color.BLACK);
 			graphics.drawString(text, tx + 1, ty + 1);
 			graphics.setColor(Color.WHITE);
 			graphics.drawString(text, tx, ty);
 
-			x += spacing;
+			cx += spacing;
 		}
+
+		graphics.setStroke(priorStroke);
 
 		graphics.setFont(priorFont);
 		if (priorAA != null)
 		{
 			graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, priorAA);
 		}
+	}
+
+	/**
+	 * A four-point star with concave sides, matching the plugin's own icon. The waist factor sets how
+	 * deeply the sides pinch: lower is spikier, higher is rounder. 0.26 keeps the centre wide enough
+	 * for a three-digit number to sit legibly inside.
+	 */
+	private static Shape fourPointStar(double cx, double cy, double rx, double ry)
+	{
+		final double waist = 0.26;
+		final double wx = rx * waist;
+		final double wy = ry * waist;
+
+		final Path2D.Double p = new Path2D.Double();
+		p.moveTo(cx, cy - ry);
+		p.quadTo(cx + wx, cy - wy, cx + rx, cy);
+		p.quadTo(cx + wx, cy + wy, cx, cy + ry);
+		p.quadTo(cx - wx, cy + wy, cx - rx, cy);
+		p.quadTo(cx - wx, cy - wy, cx, cy - ry);
+		p.closePath();
+		return p;
 	}
 
 	private static BufferedImage spriteToImage(net.runelite.api.SpritePixels sprite)
