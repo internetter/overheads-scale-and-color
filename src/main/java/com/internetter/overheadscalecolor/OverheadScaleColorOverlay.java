@@ -194,7 +194,12 @@ public class OverheadScaleColorOverlay extends Overlay
 			return null;
 		}
 
-		final int zOffset = local.getLogicalHeight() + config.heightOffset();
+		// Ring-only draws around the CLIENT's icon, which sits at a different height than a
+		// replacement we draw ourselves -- so it needs its own offset. Sharing one value is why the
+		// ring drifted: a wrong height is a world-space error, and a world-space error projects to a
+		// screen gap that changes as the camera moves.
+		final int zOffset = local.getLogicalHeight()
+			+ (shrink ? config.heightOffset() : config.ringOnlyOffset());
 
 		// getCanvasImageLocation centres the image on the projected point in BOTH axes (verified
 		// by decompiling Perspective). A naive scale-down therefore shrinks toward the centre and

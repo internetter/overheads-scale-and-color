@@ -127,6 +127,21 @@ public interface OverheadScaleColorConfig extends Config
 	}
 
 	@ConfigItem(
+		position = 9,
+		keyName = "ringOnlyOffset",
+		name = "Ring height (Ring only)",
+		description =
+			"Ring only mode. Height of the ring, tuned separately from the Shrink icon height because the client draws its "
+				+ "own icon at a different height than the plugin draws a replacement. Once this value is right the ring stays "
+				+ "locked to the icon at every camera angle -- so check by rotating and zooming, not just from one view."
+	)
+	@Range(min = -200, max = 200)
+	default int ringOnlyOffset()
+	{
+		return 0;
+	}
+
+	@ConfigItem(
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
