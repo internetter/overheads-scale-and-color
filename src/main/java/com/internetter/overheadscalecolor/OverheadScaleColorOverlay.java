@@ -123,13 +123,6 @@ public class OverheadScaleColorOverlay extends Overlay
 	{
 		applyPendingInvalidation();
 
-		// TEST ONLY (branch spike/sprite-override): draw nothing, so what is on screen is
-		// purely the client's own icon and any sprite override applied to it.
-		if (config.overrideTest())
-		{
-			return null;
-		}
-
 		final Player local = client.getLocalPlayer();
 		if (local == null)
 		{
@@ -148,7 +141,14 @@ public class OverheadScaleColorOverlay extends Overlay
 			return null;
 		}
 
-		final BufferedImage img = scaled(icon, nativeImg, config.scale(), config.smoothScaling());
+		final boolean shrink = config.mode() == OverheadMode.SHRINK;
+
+		// In ring-only mode the client is still drawing its own icon at native size, so the ring is
+		// sized and placed against the native sprite and no replacement is drawn over the top.
+		final BufferedImage img = shrink
+			? scaled(icon, nativeImg, config.scale(), config.smoothScaling())
+			: nativeImg;
+
 		final LocalPoint lp = local.getLocalLocation();
 		if (lp == null)
 		{
@@ -175,7 +175,11 @@ public class OverheadScaleColorOverlay extends Overlay
 			drawRing(graphics, icon, x, y, img.getWidth(), img.getHeight());
 		}
 
-		graphics.drawImage(img, x, y, null);
+		if (shrink)
+		{
+			graphics.drawImage(img, x, y, null);
+		}
+
 		return null;
 	}
 

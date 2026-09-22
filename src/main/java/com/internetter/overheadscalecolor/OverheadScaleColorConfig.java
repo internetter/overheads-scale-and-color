@@ -25,10 +25,25 @@ public interface OverheadScaleColorConfig extends Config
 	String RING_SECTION = "ring";
 
 	@ConfigItem(
+		position = 0,
+		keyName = "mode",
+		name = "Mode",
+		description =
+			"Ring only: the client draws its normal icon and the plugin just rings it. Nothing is hidden. "
+				+ "Shrink icon: the plugin draws its own smaller icon, which requires hiding the client's -- and the client "
+				+ "draws your healthbar, hitsplats, overhead chat and name in the same pass, so those are hidden too while "
+				+ "an overhead prayer is active. There is no way to hide the icon on its own."
+	)
+	default OverheadMode mode()
+	{
+		return OverheadMode.RING_ONLY;
+	}
+
+	@ConfigItem(
 		position = 1,
 		keyName = "scale",
 		name = "Scale %",
-		description = "Rendered size as a percent of native size. 100 is vanilla size; the floor is 10 because the source sprite is only ~30px tall and anything smaller stops rendering at all."
+		description = "Size as a percent of the normal icon. Only applies in Shrink mode. The floor is 10 because the source sprite is 24px tall and anything smaller stops rendering at all."
 	)
 	@Range(min = 10, max = 100)
 	default int scale()
@@ -40,7 +55,7 @@ public interface OverheadScaleColorConfig extends Config
 		position = 2,
 		keyName = "heightOffset",
 		name = "Height offset",
-		description = "Raises the icon above your head. The player's logical height alone sits it too low, so the default is 40."
+		description = "Raises the icon, and the ring, above your head. Adjust until the ring sits neatly around your prayer icon."
 	)
 	@Range(min = -200, max = 200)
 	default int heightOffset()
@@ -53,9 +68,8 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "hideOnlyWhilePraying",
 		name = "Only hide while praying",
 		description =
-			"The client draws your icon, healthbar, hitsplats, overhead chat and name in a single pass that can only be suppressed as a whole, "
-				+ "so replacing the icon also hides those. With this ON that cost applies only while an overhead prayer is active, and everything "
-				+ "is normal the rest of the time. Turn it OFF only if you find the switch-over distracting."
+			"Shrink mode only. Limits the hiding to the moments an overhead prayer is actually active, so everything is normal "
+				+ "the rest of the time. Turn it OFF only if you find the switch-over distracting."
 	)
 	default boolean hideOnlyWhilePraying()
 	{
@@ -66,7 +80,7 @@ public interface OverheadScaleColorConfig extends Config
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
-		description = "Bilinear downscaling. Turn off for nearest-neighbour, which keeps hard pixel edges."
+		description = "Shrink mode only. Bilinear downscaling; turn off for nearest-neighbour, which keeps hard pixel edges."
 	)
 	default boolean smoothScaling()
 	{
@@ -194,43 +208,5 @@ public interface OverheadScaleColorConfig extends Config
 	default Color magicColor()
 	{
 		return new Color(0x2E9BFF);
-	}
-
-	// ------------------------------------------------------------------
-	// THROWAWAY TEST CODE -- branch spike/sprite-override only.
-	// Answers: do sprite overrides reach overhead icons? If they do, the
-	// plugin can shrink the icon without suppressing the 2D pass at all,
-	// and the healthbar/hitsplat cost disappears. Delete before merging.
-	// ------------------------------------------------------------------
-
-	@ConfigSection(
-		name = "TEST - sprite override",
-		description = "Throwaway probe. Not part of the plugin.",
-		position = 90
-	)
-	String TEST_SECTION = "test";
-
-	@ConfigItem(
-		position = 91,
-		keyName = "overrideTest",
-		name = "Enable override test",
-		description = "Turns OFF this plugin's icon suppression and replacement drawing, and instead registers a sprite override on the head-icon archive. If the overhead icon changes, overrides reach overhead icons.",
-		section = TEST_SECTION
-	)
-	default boolean overrideTest()
-	{
-		return false;
-	}
-
-	@ConfigItem(
-		position = 92,
-		keyName = "overrideSolidRed",
-		name = "Use a solid red square",
-		description = "On: override with an unmistakable red square. Off: override with a half-size copy of the real icon, which is the actual intended use.",
-		section = TEST_SECTION
-	)
-	default boolean overrideSolidRed()
-	{
-		return true;
 	}
 }
