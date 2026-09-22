@@ -55,12 +55,12 @@ public interface OverheadScaleColorConfig extends Config
 		position = 2,
 		keyName = "heightOffset",
 		name = "Height offset",
-		description = "Raises the icon, and the ring, above your head. Adjust until the ring sits neatly around your prayer icon."
+		description = "Shrink mode. Height of the prayer icon above your head."
 	)
 	@Range(min = -200, max = 200)
 	default int heightOffset()
 	{
-		return 40;
+		return 70;
 	}
 
 	@ConfigItem(
@@ -98,7 +98,7 @@ public interface OverheadScaleColorConfig extends Config
 	@Range(min = -200, max = 200)
 	default int healthBarOffset()
 	{
-		return 0;
+		return 30;
 	}
 
 	@ConfigItem(
@@ -123,7 +123,7 @@ public interface OverheadScaleColorConfig extends Config
 	@Range(min = -200, max = 200)
 	default int hitsplatOffset()
 	{
-		return 0;
+		return -75;
 	}
 
 	@ConfigItem(
@@ -151,6 +151,43 @@ public interface OverheadScaleColorConfig extends Config
 	default int hitsplatSize()
 	{
 		return 26;
+	}
+
+	@ConfigItem(
+		position = 11,
+		keyName = "hitsplatLingerMs",
+		name = "Hitsplat linger (ms)",
+		description = "Extra time restored hitsplats stay on screen beyond the moment the client would have dropped them."
+	)
+	@Range(min = 0, max = 2000)
+	default int hitsplatLingerMs()
+	{
+		return 600;
+	}
+
+	@ConfigItem(
+		position = 12,
+		keyName = "restoreSkull",
+		name = "Restore PK skull",
+		description =
+			"Shrink mode only. Hiding the client's icon also hides your PK skull, so this draws it back from the client's own "
+				+ "skull sprite, scaled to match the prayer icon."
+	)
+	default boolean restoreSkull()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 13,
+		keyName = "skullOffset",
+		name = "Skull height",
+		description = "Height of the restored PK skull. Normally sits below the prayer icon."
+	)
+	@Range(min = -200, max = 200)
+	default int skullOffset()
+	{
+		return 40;
 	}
 
 	@ConfigItem(

@@ -53,6 +53,9 @@ public class OverheadScaleColorOverlay extends Overlay
 	static final int MAGIC = 2;
 	static final int NO_RING = -1;
 
+	/** Offsets skull entries away from HeadIcon ordinals in the shared sprite caches. */
+	private static final int SKULL_CACHE_NS = 1000;
+
 	private final Client client;
 	private final OverheadScaleColorConfig config;
 	private final SpriteManager spriteManager;
@@ -170,47 +173,69 @@ public class OverheadScaleColorOverlay extends Overlay
 			return null;
 		}
 
-		final HeadIcon icon = local.getOverheadIcon();
-		if (icon == null)
-		{
-			return null;
-		}
-
-		final BufferedImage nativeImg = nativeSprite(icon);
-		if (nativeImg == null)
-		{
-			return null;
-		}
-
-		final boolean shrink = config.mode() == OverheadMode.SHRINK;
-
-		// In ring-only mode the client is still drawing its own icon at native size, so the ring is
-		// sized and placed against the native sprite and no replacement is drawn over the top.
-		final BufferedImage img = shrink
-			? scaled(icon, nativeImg, config.scale(), config.smoothScaling())
-			: nativeImg;
-
 		final LocalPoint lp = local.getLocalLocation();
 		if (lp == null)
 		{
 			return null;
 		}
 
+		final HeadIcon icon = local.getOverheadIcon();
+		final boolean shrink = config.mode() == OverheadMode.SHRINK;
+
+		// Whether the client's 2D pass is currently being vetoed. Everything it would have drawn --
+		// health bar, hitsplats, skull -- has to be put back by us for exactly this period, and that
+		// is not the same condition as "an overhead icon is showing".
+		final boolean suppressing = shrink && (!config.hideOnlyWhilePraying() || icon != null);
+
+		if (icon != null)
+		{
+			drawIcon(graphics, local, lp, icon, shrink);
+		}
+
+		if (suppressing)
+		{
+			if (config.restoreHealthBar())
+			{
+				drawHealthBar(graphics, local, lp);
+			}
+
+			if (config.restoreHitsplats())
+			{
+				drawHitsplats(graphics, local, lp);
+			}
+
+			if (config.restoreSkull())
+			{
+				drawSkull(graphics, local, lp);
+			}
+		}
+
+		return null;
+	}
+
+	private void drawIcon(Graphics2D graphics, Player local, LocalPoint lp, HeadIcon icon, boolean shrink)
+	{
+		final BufferedImage nativeImg = nativeSprite(icon);
+		if (nativeImg == null)
+		{
+			return;
+		}
+
+		// In ring-only mode the client is still drawing its own icon at native size, so the ring is
+		// sized against the native sprite and no replacement is drawn over the top.
+		final BufferedImage img = shrink
+			? scaled(icon.ordinal(), nativeImg, config.scale(), config.smoothScaling())
+			: nativeImg;
+
 		// Ring-only draws around the CLIENT's icon, which sits at a different height than a
-		// replacement we draw ourselves -- so it needs its own offset. Sharing one value is why the
-		// ring drifted: a wrong height is a world-space error, and a world-space error projects to a
-		// screen gap that changes as the camera moves.
+		// replacement we draw ourselves, so it needs its own offset.
 		final int zOffset = local.getLogicalHeight()
 			+ (shrink ? config.heightOffset() : config.ringOnlyOffset());
 
-		// getCanvasImageLocation centres the image on the projected point in BOTH axes (verified
-		// by decompiling Perspective). A naive scale-down therefore shrinks toward the centre and
-		// the bottom edge rises; shifting down by half the height difference pins the bottom edge,
-		// which keeps the icon anchored where vanilla put it at every scale.
 		final Point p = Perspective.getCanvasImageLocation(client, lp, img, zOffset);
 		if (p == null)
 		{
-			return null;
+			return;
 		}
 
 		final int x = p.getX();
@@ -224,20 +249,54 @@ public class OverheadScaleColorOverlay extends Overlay
 		if (shrink)
 		{
 			graphics.drawImage(img, x, y, null);
+		}
+	}
 
-			// Suppression removed the client's own bar and hitsplats, so put them back.
-			if (config.restoreHealthBar())
-			{
-				drawHealthBar(graphics, local, lp);
-			}
-
-			if (config.restoreHitsplats())
-			{
-				drawHitsplats(graphics, local, lp);
-			}
+	/**
+	 * Puts back the PK skull that suppression removed. Scaled alongside the prayer icon so the two
+	 * stay visually consistent.
+	 */
+	private void drawSkull(Graphics2D graphics, Player local, LocalPoint lp)
+	{
+		final int skull = local.getSkullIcon();
+		if (skull < 0)
+		{
+			return;
 		}
 
-		return null;
+		final BufferedImage nativeImg = skullSprite(skull);
+		if (nativeImg == null)
+		{
+			return;
+		}
+
+		final BufferedImage img = scaled(SKULL_CACHE_NS + skull, nativeImg, config.scale(), config.smoothScaling());
+
+		final Point p = Perspective.getCanvasImageLocation(client, lp, img,
+			local.getLogicalHeight() + config.skullOffset());
+		if (p == null)
+		{
+			return;
+		}
+
+		graphics.drawImage(img, p.getX(), p.getY() + (nativeImg.getHeight() - img.getHeight()) / 2, null);
+	}
+
+	private BufferedImage skullSprite(int index)
+	{
+		final int key = SKULL_CACHE_NS + index;
+		final BufferedImage cached = nativeCache.get(key);
+		if (cached != null)
+		{
+			return cached;
+		}
+
+		final BufferedImage img = spriteManager.getSprite(SpriteID.HEADICONS_PK, index);
+		if (img != null)
+		{
+			nativeCache.put(key, img);
+		}
+		return img;
 	}
 
 	/**
@@ -432,7 +491,8 @@ public class OverheadScaleColorOverlay extends Overlay
 		final RestoredHitsplat[] live;
 		synchronized (hitsplats)
 		{
-			hitsplats.removeIf(h -> h.expired(cycle));
+			final int linger = config.hitsplatLingerMs() / 20;
+			hitsplats.removeIf(h -> h.expired(cycle - linger));
 			if (hitsplats.isEmpty())
 			{
 				return;
@@ -555,9 +615,9 @@ public class OverheadScaleColorOverlay extends Overlay
 		return img;
 	}
 
-	private BufferedImage scaled(HeadIcon icon, BufferedImage src, int scalePercent, boolean smooth)
+	private BufferedImage scaled(int id, BufferedImage src, int scalePercent, boolean smooth)
 	{
-		final long key = ((long) icon.ordinal() << 32) | ((long) scalePercent << 1) | (smooth ? 1 : 0);
+		final long key = ((long) id << 32) | ((long) scalePercent << 1) | (smooth ? 1 : 0);
 		final BufferedImage cached = scaledCache.get(key);
 		if (cached != null)
 		{
