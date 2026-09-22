@@ -19,14 +19,14 @@ public enum OverheadMode
 	 * Leave the client's icon alone and draw the ring around it. Nothing is hidden: healthbar,
 	 * hitsplats, overhead chat, name and their timing are all untouched.
 	 */
-	RING_ONLY("Ring only - nothing hidden"),
+	RING_ONLY("Ring only"),
 
 	/**
 	 * Replace the icon with a resized copy. This hides your healthbar, hitsplats, overhead chat and
 	 * name while an overhead prayer is active, because the client draws them in one pass with the
 	 * icon and offers no finer control.
 	 */
-	SHRINK("Shrink icon - hides healthbar while praying");
+	SHRINK("Shrink icon");
 
 	private final String label;
 

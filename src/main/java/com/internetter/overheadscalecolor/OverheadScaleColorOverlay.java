@@ -7,6 +7,10 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.image.BufferedImage;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Inject;
@@ -78,6 +82,25 @@ public class OverheadScaleColorOverlay extends Overlay
 	void setHealthBarConfig(HealthBarConfig cfg)
 	{
 		this.healthBarConfig = cfg;
+	}
+
+	/**
+	 * Hitsplats recorded while suppression is hiding the client's own. Bounded at four, which is what
+	 * the client itself shows at once. Written from the event thread, read on the client thread, so
+	 * the deque is synchronised on itself at both ends.
+	 */
+	private final Deque<RestoredHitsplat> hitsplats = new ArrayDeque<>();
+
+	void recordHitsplat(RestoredHitsplat splat)
+	{
+		synchronized (hitsplats)
+		{
+			while (hitsplats.size() >= 4)
+			{
+				hitsplats.pollFirst();
+			}
+			hitsplats.addLast(splat);
+		}
 	}
 
 	@Inject
@@ -195,10 +218,15 @@ public class OverheadScaleColorOverlay extends Overlay
 		{
 			graphics.drawImage(img, x, y, null);
 
-			// Suppression removed the client's own bar, so put an identical one back.
+			// Suppression removed the client's own bar and hitsplats, so put them back.
 			if (config.restoreHealthBar())
 			{
 				drawHealthBar(graphics, local, lp);
+			}
+
+			if (config.restoreHitsplats())
+			{
+				drawHitsplats(graphics, local, lp);
 			}
 		}
 
@@ -383,6 +411,74 @@ public class OverheadScaleColorOverlay extends Overlay
 		{
 			graphics.drawImage(healthBarFront, p.getX(), p.getY(), p.getX() + filled, p.getY() + h,
 				0, 0, filled, h, null);
+		}
+	}
+
+	/**
+	 * Redraws the hitsplats suppression removed. Expiry uses the client's own
+	 * getDisappearsOnGameCycle, so they last exactly as long as the real ones would.
+	 */
+	private void drawHitsplats(Graphics2D graphics, Player local, LocalPoint lp)
+	{
+		final int cycle = client.getGameCycle();
+
+		final RestoredHitsplat[] live;
+		synchronized (hitsplats)
+		{
+			hitsplats.removeIf(h -> h.expired(cycle));
+			if (hitsplats.isEmpty())
+			{
+				return;
+			}
+			live = hitsplats.toArray(new RestoredHitsplat[0]);
+		}
+
+		final Point anchor = Perspective.localToCanvas(client, lp,
+			client.getTopLevelWorldView().getPlane(),
+			local.getLogicalHeight() + config.hitsplatOffset());
+		if (anchor == null)
+		{
+			return;
+		}
+
+		final Object priorAA = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+		final Font priorFont = graphics.getFont();
+		graphics.setFont(priorFont.deriveFont(Font.BOLD, 12f));
+		final FontMetrics fm = graphics.getFontMetrics();
+
+		// Spread multiple splats horizontally, centred on the player, like the client does.
+		final int w = 22;
+		final int h = 15;
+		final int spacing = w + 2;
+		int x = anchor.getX() - ((live.length - 1) * spacing) / 2 - w / 2;
+
+		for (RestoredHitsplat splat : live)
+		{
+			final int y = anchor.getY() - h / 2;
+
+			graphics.setColor(splat.color());
+			graphics.fillOval(x, y, w, h);
+			graphics.setColor(new Color(0, 0, 0, 160));
+			graphics.drawOval(x, y, w, h);
+
+			final String text = Integer.toString(splat.amount);
+			final int tx = x + (w - fm.stringWidth(text)) / 2;
+			final int ty = y + (h + fm.getAscent()) / 2 - 1;
+
+			graphics.setColor(Color.BLACK);
+			graphics.drawString(text, tx + 1, ty + 1);
+			graphics.setColor(Color.WHITE);
+			graphics.drawString(text, tx, ty);
+
+			x += spacing;
+		}
+
+		graphics.setFont(priorFont);
+		if (priorAA != null)
+		{
+			graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, priorAA);
 		}
 	}
 

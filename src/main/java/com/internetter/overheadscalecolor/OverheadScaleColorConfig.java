@@ -102,6 +102,31 @@ public interface OverheadScaleColorConfig extends Config
 	}
 
 	@ConfigItem(
+		position = 7,
+		keyName = "restoreHitsplats",
+		name = "Restore hitsplats",
+		description =
+			"Shrink mode only. Redraws the hitsplats hiding the icon removed. The client does not expose its hitsplat "
+				+ "graphics, so these are drawn rather than reproduced -- close, but not pixel-identical to normal ones."
+	)
+	default boolean restoreHitsplats()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 8,
+		keyName = "hitsplatOffset",
+		name = "Hitsplat height",
+		description = "Vertical placement of the restored hitsplats."
+	)
+	@Range(min = -200, max = 200)
+	default int hitsplatOffset()
+	{
+		return 0;
+	}
+
+	@ConfigItem(
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
