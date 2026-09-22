@@ -115,7 +115,13 @@ public class OverheadScaleColorOverlay extends Overlay
 		this.client = client;
 		this.config = config;
 		this.spriteManager = spriteManager;
-		setLayer(OverlayLayer.ABOVE_SCENE);
+		// UNDER_WIDGETS, not ABOVE_SCENE, despite the names. ABOVE_SCENE is rendered from the
+		// client's drawScene() hook, which runs BEFORE overheads and 2D entity elements are drawn --
+		// so anything we drew there was painted over by the client a moment later, putting hitsplats
+		// behind the player and the ring behind the prayer icon. UNDER_WIDGETS is rendered from
+		// drawAboveOverheads(), which is after all of that but still beneath interfaces, which is
+		// exactly where these belong.
+		setLayer(OverlayLayer.UNDER_WIDGETS);
 		setPosition(OverlayPosition.DYNAMIC);
 	}
 
