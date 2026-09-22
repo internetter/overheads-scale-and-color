@@ -10,6 +10,7 @@ import java.awt.Stroke;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.Font;
+import java.awt.GradientPaint;
 import java.awt.FontMetrics;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -529,9 +530,15 @@ public class OverheadScaleColorOverlay extends Overlay
 			final int cy = anchor.getY();
 			final Shape star = fourPointStar(cx, cy, w / 2.0, h / 2.0);
 
-			graphics.setColor(splat.color());
+			// Shade top-to-bottom rather than filling flat, so the splat has the same sense of
+			// volume the client's own graphics have.
+			graphics.setPaint(new GradientPaint(
+				cx, cy - h / 2f, splat.highlight(),
+				cx, cy + h / 2f, splat.shadow()));
 			graphics.fill(star);
-			graphics.setColor(new Color(0, 0, 0, 170));
+
+			// setColor replaces the gradient paint for the outline.
+			graphics.setColor(new Color(0, 0, 0, 180));
 			graphics.draw(star);
 
 			final String text = Integer.toString(splat.amount);
