@@ -12,6 +12,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.HealthBarConfig;
 import net.runelite.api.HeadIcon;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
@@ -63,6 +64,21 @@ public class OverheadScaleColorOverlay extends Overlay
 
 	/** Bitmask of icon ordinals already logged as missing, so the log is not written per frame. */
 	private int missingLogged;
+
+	/**
+	 * The client's own health bar definition, captured from PostHealthBarConfig. Suppressing the 2D
+	 * pass takes the real bar with it, so in Shrink mode we redraw one using these exact sprites.
+	 * Volatile because the event arrives off the client thread.
+	 */
+	private volatile HealthBarConfig healthBarConfig;
+	private BufferedImage healthBarFront;
+	private BufferedImage healthBarBack;
+	private HealthBarConfig healthBarCachedFrom;
+
+	void setHealthBarConfig(HealthBarConfig cfg)
+	{
+		this.healthBarConfig = cfg;
+	}
 
 	@Inject
 	OverheadScaleColorOverlay(Client client, OverheadScaleColorConfig config, SpriteManager spriteManager)
@@ -178,6 +194,12 @@ public class OverheadScaleColorOverlay extends Overlay
 		if (shrink)
 		{
 			graphics.drawImage(img, x, y, null);
+
+			// Suppression removed the client's own bar, so put an identical one back.
+			if (config.restoreHealthBar())
+			{
+				drawHealthBar(graphics, local, lp);
+			}
 		}
 
 		return null;
@@ -306,6 +328,73 @@ public class OverheadScaleColorOverlay extends Overlay
 				return MAGIC;
 			default:
 				return NO_RING;
+		}
+	}
+
+	/**
+	 * Redraws the health bar the 2D suppression removed, using the client's own sprites so it is
+	 * indistinguishable from vanilla.
+	 *
+	 * getHealthRatio() returns -1 when the client would not be showing a bar at all, so the timing
+	 * comes from the client rather than being guessed -- the bar appears and disappears exactly when
+	 * it normally would.
+	 */
+	private void drawHealthBar(Graphics2D graphics, Player local, LocalPoint lp)
+	{
+		final int ratio = local.getHealthRatio();
+		final int scale = local.getHealthScale();
+		if (ratio < 0 || scale <= 0)
+		{
+			return;
+		}
+
+		final HealthBarConfig cfg = healthBarConfig;
+		if (cfg == null)
+		{
+			return;
+		}
+
+		if (cfg != healthBarCachedFrom)
+		{
+			healthBarCachedFrom = cfg;
+			healthBarFront = spriteToImage(cfg.getHealthBarFrontSprite());
+			healthBarBack = spriteToImage(cfg.getHealthBarBackSprite());
+		}
+
+		if (healthBarFront == null || healthBarBack == null)
+		{
+			return;
+		}
+
+		final int w = healthBarFront.getWidth();
+		final int h = healthBarFront.getHeight();
+
+		final Point p = Perspective.getCanvasImageLocation(client, lp, healthBarFront,
+			local.getLogicalHeight() + config.healthBarOffset());
+		if (p == null)
+		{
+			return;
+		}
+
+		final int filled = Math.min(w, (int) Math.round((double) w * ratio / scale));
+
+		graphics.drawImage(healthBarBack, p.getX(), p.getY(), null);
+		if (filled > 0)
+		{
+			graphics.drawImage(healthBarFront, p.getX(), p.getY(), p.getX() + filled, p.getY() + h,
+				0, 0, filled, h, null);
+		}
+	}
+
+	private static BufferedImage spriteToImage(net.runelite.api.SpritePixels sprite)
+	{
+		try
+		{
+			return sprite == null ? null : sprite.toBufferedImage();
+		}
+		catch (RuntimeException e)
+		{
+			return null;
 		}
 	}
 

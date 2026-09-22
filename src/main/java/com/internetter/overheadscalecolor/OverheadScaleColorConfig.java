@@ -77,6 +77,31 @@ public interface OverheadScaleColorConfig extends Config
 	}
 
 	@ConfigItem(
+		position = 5,
+		keyName = "restoreHealthBar",
+		name = "Restore health bar",
+		description =
+			"Shrink mode only. Hiding the client's icon also hides its health bar, so this draws one back using the client's "
+				+ "own bar sprites, appearing and disappearing exactly when the real one would."
+	)
+	default boolean restoreHealthBar()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 6,
+		keyName = "healthBarOffset",
+		name = "Health bar height",
+		description = "Vertical placement of the restored health bar. Adjust until it sits where the normal one did."
+	)
+	@Range(min = -200, max = 200)
+	default int healthBarOffset()
+	{
+		return 0;
+	}
+
+	@ConfigItem(
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
