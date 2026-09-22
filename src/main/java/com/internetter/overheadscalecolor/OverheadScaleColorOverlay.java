@@ -551,8 +551,21 @@ public class OverheadScaleColorOverlay extends Overlay
 			final int tx = cx - fm.stringWidth(text) / 2;
 			final int ty = cy + fm.getAscent() / 2 - 1;
 
+			// A single drop shadow leaves the glyph edges blending into the fill behind them. A full
+			// outline on all eight sides separates the number from the splat colour completely, so it
+			// stays unambiguous on light fills like white and yellow as well as dark ones.
 			graphics.setColor(Color.BLACK);
-			graphics.drawString(text, tx + 1, ty + 1);
+			for (int dx = -1; dx <= 1; dx++)
+			{
+				for (int dy = -1; dy <= 1; dy++)
+				{
+					if (dx != 0 || dy != 0)
+					{
+						graphics.drawString(text, tx + dx, ty + dy);
+					}
+				}
+			}
+
 			graphics.setColor(Color.WHITE);
 			graphics.drawString(text, tx, ty);
 

@@ -138,7 +138,7 @@ public interface OverheadScaleColorConfig extends Config
 	@Range(min = -200, max = 200)
 	default int ringOnlyOffset()
 	{
-		return 0;
+		return 70;
 	}
 
 	@ConfigItem(
