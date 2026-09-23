@@ -85,6 +85,7 @@ public class OverheadScaleColorOverlay extends Overlay
 	private BufferedImage healthBarFront;
 	private BufferedImage healthBarBack;
 	private HealthBarConfig healthBarCachedFrom;
+	private boolean healthBarFallbackLogged;
 
 	void setHealthBarConfig(HealthBarConfig cfg)
 	{
@@ -500,20 +501,26 @@ public class OverheadScaleColorOverlay extends Overlay
 		}
 
 		final HealthBarConfig cfg = healthBarConfig;
-		if (cfg == null)
-		{
-			return;
-		}
-
-		if (cfg != healthBarCachedFrom)
+		if (cfg != null && cfg != healthBarCachedFrom)
 		{
 			healthBarCachedFrom = cfg;
 			healthBarFront = spriteToImage(cfg.getHealthBarFrontSprite());
 			healthBarBack = spriteToImage(cfg.getHealthBarBackSprite());
 		}
 
+		// PostHealthBarConfig fires when the client is about to draw a health bar -- which is the
+		// very thing being vetoed. If suppression started before the client ever drew one, the event
+		// never arrives and we have no sprites. Falling back to a drawn bar means a bar always shows;
+		// it is swapped for the client's own sprites the moment the event does arrive.
 		if (healthBarFront == null || healthBarBack == null)
 		{
+			if (!healthBarFallbackLogged)
+			{
+				healthBarFallbackLogged = true;
+				log.debug("no health bar sprites yet, drawing fallback bar");
+			}
+
+			drawFallbackHealthBar(graphics, local, lp, ratio, scale);
 			return;
 		}
 
@@ -650,6 +657,35 @@ public class OverheadScaleColorOverlay extends Overlay
 		p.quadTo(cx - wx, cy - wy, cx, cy - ry);
 		p.closePath();
 		return p;
+	}
+
+	/**
+	 * Health bar drawn from scratch, used only until the client's own sprites become available.
+	 * Deliberately plain: green over red at the size of a default bar.
+	 */
+	private void drawFallbackHealthBar(Graphics2D graphics, Player local, LocalPoint lp, int ratio, int scale)
+	{
+		final int w = 30;
+		final int h = 5;
+
+		final Point centre = Perspective.localToCanvas(client, lp,
+			client.getTopLevelWorldView().getPlane(),
+			local.getLogicalHeight() + config.healthBarOffset());
+		if (centre == null)
+		{
+			return;
+		}
+
+		final int x = centre.getX() - w / 2;
+		final int y = centre.getY() - h / 2;
+		final int filled = Math.max(0, Math.min(w, (int) Math.round((double) w * ratio / scale)));
+
+		graphics.setColor(new Color(0x7F0000));
+		graphics.fillRect(x, y, w, h);
+		graphics.setColor(new Color(0x00B000));
+		graphics.fillRect(x, y, filled, h);
+		graphics.setColor(new Color(0, 0, 0, 190));
+		graphics.drawRect(x, y, w, h);
 	}
 
 	private static BufferedImage spriteToImage(net.runelite.api.SpritePixels sprite)
