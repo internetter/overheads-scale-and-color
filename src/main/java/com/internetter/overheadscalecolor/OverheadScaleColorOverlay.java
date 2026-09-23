@@ -27,6 +27,7 @@ import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.client.game.SpriteManager;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -214,6 +215,11 @@ public class OverheadScaleColorOverlay extends Overlay
 			{
 				drawSkull(graphics, local, lp);
 			}
+
+			if (config.restoreOverheadChat())
+			{
+				drawOverheadChat(graphics, local, lp);
+			}
 		}
 
 		return null;
@@ -292,6 +298,41 @@ public class OverheadScaleColorOverlay extends Overlay
 		}
 
 		graphics.drawImage(img, p.getX(), p.getY() + (nativeImg.getHeight() - img.getHeight()) / 2, null);
+	}
+
+	/**
+	 * Puts back the overhead chat text that suppression removed.
+	 *
+	 * Drawn in the game's own font via FontManager, so the typeface matches rather than approximates.
+	 * The client keeps ticking getOverheadText() down regardless of whether it is drawn, so the text
+	 * clears itself on the client's schedule and needs no timer here.
+	 *
+	 * Not reproduced: chat effects (wave, scroll, flashing colours). Those are cache-driven and not
+	 * exposed, so effect text renders as plain text.
+	 */
+	private void drawOverheadChat(Graphics2D graphics, Player local, LocalPoint lp)
+	{
+		final String text = local.getOverheadText();
+		if (text == null || text.isEmpty())
+		{
+			return;
+		}
+
+		final Font priorFont = graphics.getFont();
+		graphics.setFont(FontManager.getRunescapeFont());
+
+		final Point p = Perspective.getCanvasTextLocation(client, graphics, lp, text,
+			local.getLogicalHeight() + config.chatOffset());
+
+		if (p != null)
+		{
+			graphics.setColor(Color.BLACK);
+			graphics.drawString(text, p.getX() + 1, p.getY() + 1);
+			graphics.setColor(config.chatColor());
+			graphics.drawString(text, p.getX(), p.getY());
+		}
+
+		graphics.setFont(priorFont);
 	}
 
 	private BufferedImage skullSprite(int index)

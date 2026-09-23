@@ -175,6 +175,43 @@ public interface OverheadScaleColorConfig extends Config
 	}
 
 	@ConfigItem(
+		position = 14,
+		keyName = "restoreOverheadChat",
+		name = "Restore overhead chat",
+		description =
+			"Hiding the client's icon also hides your overhead chat text, so this draws it back in the game's own font. "
+				+ "Chat effects such as wave and flashing colours are not reproduced and render as plain text."
+	)
+	default boolean restoreOverheadChat()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 15,
+		keyName = "chatOffset",
+		name = "Overhead chat height",
+		description = "Height of the restored overhead chat text. Normally sits above the prayer icon."
+	)
+	@Range(min = -200, max = 300)
+	default int chatOffset()
+	{
+		return 110;
+	}
+
+	@Alpha
+	@ConfigItem(
+		position = 16,
+		keyName = "chatColor",
+		name = "Overhead chat color",
+		description = "Colour of the restored overhead chat text."
+	)
+	default Color chatColor()
+	{
+		return Color.WHITE;
+	}
+
+	@ConfigItem(
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
