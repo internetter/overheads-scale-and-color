@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.Renderable;
+import net.runelite.api.events.HitsplatApplied;
+import net.runelite.api.events.PostHealthBarConfig;
 import net.runelite.client.callback.RenderCallback;
 import net.runelite.client.callback.RenderCallbackManager;
 import net.runelite.client.config.ConfigManager;
@@ -78,6 +80,36 @@ public class OverheadScaleColorPlugin extends Plugin
 		renderCallbackManager.unregister(drawCallback);
 		overlayManager.remove(overlay);
 		overlay.invalidateAll();
+	}
+
+	/**
+	 * The client publishes its health bar definition here, including the real front and back
+	 * sprites it draws with. Capturing it lets the overlay redraw a bar that is pixel-identical
+	 * to vanilla rather than an approximation, which matters because suppression hides the real
+	 * one whenever the icon is being replaced.
+	 */
+	@Subscribe
+	public void onPostHealthBarConfig(PostHealthBarConfig event)
+	{
+		overlay.setHealthBarConfig(event.getHealthBarConfig());
+	}
+
+	/**
+	 * Suppression removes the client's hitsplats along with the icon, so they are recorded here
+	 * and redrawn by the overlay until the cycle the client itself would have dropped them on.
+	 */
+	@Subscribe
+	public void onHitsplatApplied(HitsplatApplied event)
+	{
+		if (event.getActor() != client.getLocalPlayer())
+		{
+			return;
+		}
+
+		overlay.recordHitsplat(new RestoredHitsplat(
+			event.getHitsplat().getAmount(),
+			event.getHitsplat().getHitsplatType(),
+			event.getHitsplat().getDisappearsOnGameCycle()));
 	}
 
 	@Subscribe

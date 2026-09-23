@@ -2,45 +2,41 @@
 
 ## What this is
 
-A RuneLite plugin that shrinks the overhead prayer icon above your own player so it stops covering
-the character model, and draws a colored ring around it so it stays readable once small. Purely
-cosmetic. No automation, no input simulation, no network calls. Local player only.
-
-Formerly "Overhead Prayer Scaler". Renamed during Phase 0, before anything shipped.
+A RuneLite plugin that replaces the overhead prayer icon above your own player with a colored ring,
+or a smaller copy of the icon. Purely cosmetic. No automation, no input simulation, no network
+calls. Local player only.
 
 ## Non-negotiable constraints
 
-1. **Know what has actually been checked.** `DESIGN.md` has two appendices: the verified API
-   surface (confirmed with `javap` against the pinned jars) and the still-unverified list. Do not
-   promote something from the second list to a factual claim without a human looking at a screen.
+1. **Know what has actually been checked.** "Compiles" and "works" are different claims. Do not
+   write an in-game behaviour into the docs without a human having looked at a screen.
 2. **No reflection into client internals.** Plugin Hub rejects it. Public `runelite-api` and
    `runelite-client` surfaces only.
 3. **Verify every API signature against the resolved jars before using it.** `build.gradle` uses
    `latest.release`, as the Plugin Hub requires — so the target moves. Find what it actually
    resolved to (`./gradlew dependencies --configuration compileClasspath | grep runelite:client`)
-   and check that jar with `javap`. Everything here was verified against **1.12.38**; re-check when
+   and check that jar with `javap`. Everything here was verified against **1.12.39**; re-check when
    it moves. Treat any method named in prose as a hypothesis. If something does not exist, say so
    and stop — do not substitute a call that merely compiles. *This is not hypothetical: the
    original design was built on `Client#setLocalPlayerHidden2D`, which does not exist.*
 4. **Clean up in `shutDown()`.** Unregister the render callback, remove the overlay, drop caches.
    The current design toggles no client state, so there is no flag to restore — if that ever
    changes, restoring it becomes mandatory.
-5. **No per-frame allocation in the render path.** Scaled `BufferedImage`s are built once per
-   (icon, scale, interpolation). Ring colors and strokes are resolved once and rebuilt only on
-   config change. `render()` looks up and draws.
+5. **No per-frame allocation in the render path.** Images, ring colors and strokes are memoised and
+   rebuilt only on config change. The one exception is a `GradientPaint` per visible hitsplat,
+   bounded at four and only while splats are on screen.
 6. **Local player only.** Do not touch other players or NPCs. See `DESIGN.md` "Scope" — this is a
    Plugin Hub review boundary, not just a scope preference.
 
 ## Architecture in one paragraph
 
-The client draws overhead icons natively and they cannot be resized in place. So: suppress the
-client's 2D draw pass for the local player by registering a `RenderCallback` with
-`RenderCallbackManager` and returning `false` from `addEntity` when `drawingUI` is true, then
-redraw the icon ourselves at the configured scale in an `ABOVE_SCENE` overlay, positioned with
-`Perspective.getCanvasImageLocation` against `getLogicalHeight()` plus a height offset, anchored
-bottom-centre. Icon sprites come from `SpriteID.HEADICONS_PRAYER` (440) indexed by
-`HeadIcon.ordinal()`. A colored ring is stroked around the icon at a fixed pixel thickness. Full
-reasoning, rejected alternatives, and the corrections to the original plan are in `DESIGN.md`.
+The client offers no way to resize or hide an overhead icon on its own, so the plugin vetoes the
+local player's 2D draw pass (`RenderCallback` registered with `RenderCallbackManager`, returning
+`false` from `addEntity` when `drawingUI` is true) and draws its own indicator in an overlay. That
+veto is all-or-nothing: it takes the health bar, hitsplats, PK skull and overhead chat with the
+icon, so the plugin draws all of those back. The overlay is on `UNDER_WIDGETS`, not `ABOVE_SCENE` —
+see `DESIGN.md`, this one is not obvious. Full reasoning and the client constraints are in
+`DESIGN.md`.
 
 ## Config surface
 
@@ -49,24 +45,18 @@ Two core options plus a ring section. Do not add more without a reason that surv
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `scale` | int 10–100 | 50 | percent of native size |
-| `heightOffset` | int | 40 | tuned on screen, not derived |
-| `hideOnlyWhilePraying` | bool | true | DESIGN.md approach A2; restores 2D elements when no overhead is active |
-| `smoothScaling` | bool | true | bilinear vs nearest-neighbour |
-| `ringEnabled` | bool | true | |
-| `ringThickness` | int 1–6 | 2 | screen pixels, constant across scales |
-| `ringGap` | int 0–10 | 2 | |
-| `ringOutline` | bool | true | dark edge; without it green vanishes on grass |
-| `palette` | enum | Standard | includes CVD-safe palettes — see below |
+| `mode` | enum | Ring only | Ring only, or Shrink icon |
+| `scale` | int 10–250 | 50 | ring size, or icon size in Shrink mode |
+| `heightOffset` | int | 70 | tuned on screen, not derived |
+| `hideOnlyWhilePraying` | bool | true | no suppression when no overhead is active |
+| `smoothScaling` | bool | true | Shrink mode only |
+| `restoreHealthBar` / `restoreHitsplats` / `restoreSkull` / `restoreOverheadChat` | bool | true | each with its own offset |
+| `ringEnabled`, `ringThickness`, `ringGap`, `ringOutline` | | | |
+| `palette` | enum | Standard | includes CVD-safe palettes |
 | `distinctStyles` | bool | false | solid / dashed / dotted per type |
 | `meleeColor`, `rangedColor`, `magicColor` | Color | — | used only when palette is Custom |
 
 The master on/off is the plugin toggle itself. Do not add a redundant "enabled" boolean.
-
-Suppression, bottom-centre anchoring, and drawing the replacement are **not** configurable. They
-were toggles during the spike so the alternatives could be compared on screen; every "off" state
-is either useless (no replacement drawn) or actively broken (vanilla and scaled icons stacked on
-each other). Deleted before submission rather than shipped as traps.
 
 **Config keys are an API.** Renaming one after release silently wipes users' settings. The group
 was renamed to `overheadscalecolor`, and `zPadding` to `heightOffset`, before anything shipped —
@@ -78,7 +68,7 @@ The ring's default red/green/blue mapping is intuitive but puts red and green in
 pair lost in the most common color vision deficiency (~8% of men). Since the ring exists to make a
 small icon more legible, that mapping alone would fail the users who most need it. Hence the
 alternate palettes and the color-independent line-style option. If you touch the ring, do not
-regress this. Reasoning and the full palette table are in `DESIGN.md` Step 5.
+regress this. Reasoning and the full palette table are in `DESIGN.md`.
 
 ## Layout
 
@@ -86,8 +76,10 @@ regress this. Reasoning and the full palette table are in `DESIGN.md` Step 5.
 src/main/java/com/internetter/overheadscalecolor/
   OverheadScaleColorPlugin.java    // lifecycle, render callback veto
   OverheadScaleColorConfig.java    // @ConfigGroup interface
-  OverheadScaleColorOverlay.java   // render(), anchor math, ring drawing, icon cache
+  OverheadScaleColorOverlay.java   // render(), anchor math, ring, and the restored 2D elements
+  OverheadMode.java                // Ring only / Shrink icon
   RingPalette.java                 // color presets incl. CVD-safe palettes
+  RestoredHitsplat.java            // one recorded hitsplat and its color
 runelite-plugin.properties         // hub manifest; build=standard
 ```
 
@@ -155,22 +147,16 @@ that is what this section exists to prevent.
 
 | Case | Expect |
 |---|---|
-| No prayer active | Nothing drawn, no flicker |
-| Each protection prayer, one at a time | Correct icon, correct ring color |
-| Smite / Retribution / Redemption | Correct icon, **no** ring |
-| Combined overheads (range+mage etc.) | Correct icon, **no** ring |
-| Scale 100, offset 0 | Same anchor point as vanilla |
-| Scale 10 | Tiny but visible, ring still legible |
-| Change scale / palette with prayer active | Updates without restart |
-| Each CVD palette | Three types distinguishable |
-| Distinct styles on | Solid / dashed / dotted, outline follows the dashes |
-| Ring over grass, water, sand, cave floor | Outline keeps it readable everywhere |
-| Toggle plugin off | Vanilla icon returns immediately, healthbar/hitsplats return |
-| Walking, running, teleporting | Icon tracks the player, no lag or drift |
-| Camera zoom in/out, rotate | Scales and tracks correctly |
-| Fixed / resizable / stretched mode | Correct in all three |
+| No prayer active | Nothing drawn, everything vanilla |
+| Each protection prayer | Correct ring color; correct icon in Shrink mode |
+| Smite / Retribution / Redemption / combined | Correct icon, **no** ring |
+| Taking damage while praying | Health bar, hitsplats and their timing all present |
+| Skulled while praying | Skull still visible |
+| Talking while praying | Overhead chat still visible |
+| Each CVD palette / distinct styles | Three types distinguishable |
+| Camera zoom, rotate; fixed / resizable / stretched | Tracks correctly |
 | GPU plugin on and off | Correct in both |
-| Entity Hider enabled simultaneously | No flicker; vetoes compose (see `DESIGN.md` Conflicts) |
+| Entity Hider enabled simultaneously | No flicker; vetoes compose |
 | Login screen, world hop, logout | No NPE in the console |
 
 ## Things not to do

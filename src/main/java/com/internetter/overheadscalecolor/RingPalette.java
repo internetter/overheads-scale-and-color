@@ -32,23 +32,23 @@ public enum RingPalette
 	 * orange (mid luminance, yellow axis) / white (max luminance, no hue) / blue (low luminance,
 	 * blue axis), which survives both deutan and protan simulation.
 	 */
-	RED_GREEN("Red-green friendly (deuteran / protan)", 0xE69F00, 0xFFFFFF, 0x0072B2),
+	RED_GREEN("Red-green safe", 0xE69F00, 0xFFFFFF, 0x0072B2),
 
 	/**
 	 * Tritanopia / tritanomaly -- blue-yellow deficiency. Rare. Here red and green are reliable but
 	 * blue/green and yellow/violet converge, so blue is dropped and magic moves to magenta.
 	 */
-	BLUE_YELLOW("Blue-yellow friendly (tritan)", 0xD55E00, 0x009E73, 0xCC79A7),
+	BLUE_YELLOW("Blue-yellow safe", 0xD55E00, 0x009E73, 0xCC79A7),
 
 	/**
 	 * Achromatopsia / monochromacy, and anyone who simply wants maximum contrast. Pure luminance
 	 * separation. Enable "distinct ring styles" alongside this -- with no hue at all, the dash
 	 * pattern is doing most of the work.
 	 */
-	MONOCHROME("Monochrome / high contrast", 0xFFFFFF, 0xA0A0A0, 0x4A4A4A),
+	MONOCHROME("Monochrome", 0xFFFFFF, 0xA0A0A0, 0x4A4A4A),
 
 	/** Use the three colour pickers below instead of a preset. */
-	CUSTOM("Custom colors", 0, 0, 0);
+	CUSTOM("Custom", 0, 0, 0);
 
 	private final String label;
 	private final Color melee;

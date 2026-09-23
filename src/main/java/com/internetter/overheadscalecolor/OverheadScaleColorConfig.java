@@ -25,12 +25,26 @@ public interface OverheadScaleColorConfig extends Config
 	String RING_SECTION = "ring";
 
 	@ConfigItem(
+		position = 0,
+		keyName = "mode",
+		name = "Mode",
+		description =
+			"Ring only: hides the prayer icon and shows just the coloured ring, which becomes the indicator itself. "
+				+ "Shrink icon: hides the prayer icon and draws a smaller copy of it inside the ring. Either way the client's "
+				+ "own icon is hidden, which also hides your health bar, hitsplats and skull -- the plugin draws those back."
+	)
+	default OverheadMode mode()
+	{
+		return OverheadMode.RING_ONLY;
+	}
+
+	@ConfigItem(
 		position = 1,
 		keyName = "scale",
 		name = "Scale %",
-		description = "Rendered size as a percent of native size. 100 is vanilla size; the floor is 10 because the source sprite is only ~30px tall and anything smaller stops rendering at all."
+		description = "Size of the indicator as a percent of the normal icon -- the ring in Ring only mode, the icon in Shrink mode. Above 100 the shrink-mode icon is enlarged and will look soft, since the source sprite is only 24px."
 	)
-	@Range(min = 10, max = 100)
+	@Range(min = 10, max = 250)
 	default int scale()
 	{
 		return 50;
@@ -40,12 +54,12 @@ public interface OverheadScaleColorConfig extends Config
 		position = 2,
 		keyName = "heightOffset",
 		name = "Height offset",
-		description = "Raises the icon above your head. The player's logical height alone sits it too low, so the default is 40."
+		description = "Height of the ring, and the icon in Shrink mode, above your head."
 	)
 	@Range(min = -200, max = 200)
 	default int heightOffset()
 	{
-		return 40;
+		return 70;
 	}
 
 	@ConfigItem(
@@ -53,9 +67,8 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "hideOnlyWhilePraying",
 		name = "Only hide while praying",
 		description =
-			"The client draws your icon, healthbar, hitsplats, overhead chat and name in a single pass that can only be suppressed as a whole, "
-				+ "so replacing the icon also hides those. With this ON that cost applies only while an overhead prayer is active, and everything "
-				+ "is normal the rest of the time. Turn it OFF only if you find the switch-over distracting."
+			"Limits the hiding to the moments an overhead prayer is actually active, so everything is normal "
+				+ "the rest of the time. Turn it OFF only if you find the switch-over distracting."
 	)
 	default boolean hideOnlyWhilePraying()
 	{
@@ -63,10 +76,146 @@ public interface OverheadScaleColorConfig extends Config
 	}
 
 	@ConfigItem(
+		position = 5,
+		keyName = "restoreHealthBar",
+		name = "Restore health bar",
+		description =
+			"Hiding the client's icon also hides its health bar, so this draws one back using the client's "
+				+ "own bar sprites, appearing and disappearing exactly when the real one would."
+	)
+	default boolean restoreHealthBar()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 6,
+		keyName = "healthBarOffset",
+		name = "Health bar height",
+		description = "Vertical placement of the restored health bar. Adjust until it sits where the normal one did."
+	)
+	@Range(min = -200, max = 200)
+	default int healthBarOffset()
+	{
+		return 30;
+	}
+
+	@ConfigItem(
+		position = 7,
+		keyName = "restoreHitsplats",
+		name = "Restore hitsplats",
+		description =
+			"Redraws the hitsplats hiding the icon removed. The client does not expose its hitsplat "
+				+ "graphics, so these are drawn rather than reproduced -- close, but not pixel-identical to normal ones."
+	)
+	default boolean restoreHitsplats()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 8,
+		keyName = "hitsplatOffset",
+		name = "Hitsplat height",
+		description = "Vertical placement of the restored hitsplats."
+	)
+	@Range(min = -200, max = 200)
+	default int hitsplatOffset()
+	{
+		return -75;
+	}
+
+	@ConfigItem(
+		position = 10,
+		keyName = "hitsplatSize",
+		name = "Hitsplat size",
+		description = "Width of the restored hitsplat stars in pixels."
+	)
+	@Range(min = 14, max = 44)
+	default int hitsplatSize()
+	{
+		return 26;
+	}
+
+	@ConfigItem(
+		position = 11,
+		keyName = "hitsplatLingerMs",
+		name = "Hitsplat linger (ms)",
+		description = "Extra time restored hitsplats stay on screen beyond the moment the client would have dropped them."
+	)
+	@Range(min = 0, max = 2000)
+	default int hitsplatLingerMs()
+	{
+		return 600;
+	}
+
+	@ConfigItem(
+		position = 12,
+		keyName = "restoreSkull",
+		name = "Restore PK skull",
+		description =
+			"Hiding the client's icon also hides your PK skull, so this draws it back from the client's own "
+				+ "skull sprite, scaled to match the prayer icon."
+	)
+	default boolean restoreSkull()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 13,
+		keyName = "skullOffset",
+		name = "Skull height",
+		description = "Height of the restored PK skull. Normally sits below the prayer icon."
+	)
+	@Range(min = -200, max = 200)
+	default int skullOffset()
+	{
+		return 40;
+	}
+
+	@ConfigItem(
+		position = 14,
+		keyName = "restoreOverheadChat",
+		name = "Restore overhead chat",
+		description =
+			"Hiding the client's icon also hides your overhead chat text, so this draws it back in the game's own font. "
+				+ "Chat effects such as wave and flashing colours are not reproduced and render as plain text."
+	)
+	default boolean restoreOverheadChat()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 15,
+		keyName = "chatOffset",
+		name = "Overhead chat height",
+		description = "Height of the restored overhead chat text. Normally sits above the prayer icon."
+	)
+	@Range(min = -200, max = 300)
+	default int chatOffset()
+	{
+		return 110;
+	}
+
+	@Alpha
+	@ConfigItem(
+		position = 16,
+		keyName = "chatColor",
+		name = "Overhead chat color",
+		description = "Colour of the restored overhead chat text."
+	)
+	default Color chatColor()
+	{
+		return Color.WHITE;
+	}
+
+	@ConfigItem(
 		position = 4,
 		keyName = "smoothScaling",
 		name = "Smooth scaling",
-		description = "Bilinear downscaling. Turn off for nearest-neighbour, which keeps hard pixel edges."
+		description = "Shrink mode. Bilinear downscaling; turn off for nearest-neighbour, which keeps hard pixel edges."
 	)
 	default boolean smoothScaling()
 	{
@@ -109,10 +258,10 @@ public interface OverheadScaleColorConfig extends Config
 		position = 23,
 		keyName = "ringGap",
 		name = "Gap",
-		description = "Pixels between the icon edge and the ring.",
+		description = "Ring size. In Ring only mode this is what makes the ring bigger or smaller.",
 		section = RING_SECTION
 	)
-	@Range(min = 0, max = 10)
+	@Range(min = 0, max = 24)
 	default int ringGap()
 	{
 		return 2;
