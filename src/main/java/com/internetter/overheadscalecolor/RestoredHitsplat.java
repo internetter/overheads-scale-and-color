@@ -39,11 +39,19 @@ final class RestoredHitsplat
 	final int type;
 	final int expiresOnCycle;
 
+	/** Derived once here rather than per frame, since they depend only on the type. */
+	final Color highlight;
+	final Color shadow;
+
 	RestoredHitsplat(int amount, int type, int expiresOnCycle)
 	{
 		this.amount = amount;
 		this.type = type;
 		this.expiresOnCycle = expiresOnCycle;
+
+		final Color base = color();
+		this.highlight = shift(base, 0.42f);
+		this.shadow = shift(base, -0.30f);
 	}
 
 	boolean expired(int gameCycle)
@@ -122,18 +130,6 @@ final class RestoredHitsplat
 				// inventing a colour, so a future hitsplat still reads sensibly.
 				return amount == 0 ? BLUE : RED;
 		}
-	}
-
-	/** Lighter tint used at the top of the splat to give it depth instead of a flat fill. */
-	Color highlight()
-	{
-		return shift(color(), 0.42f);
-	}
-
-	/** Darker shade used at the bottom. */
-	Color shadow()
-	{
-		return shift(color(), -0.30f);
 	}
 
 	private static Color shift(Color c, float amount)

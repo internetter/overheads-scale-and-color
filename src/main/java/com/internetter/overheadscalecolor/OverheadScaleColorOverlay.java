@@ -33,21 +33,30 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
 /**
- * Draws the scaled overhead icon and its colored ring.
+ * Draws the overhead indicator -- the ring, and in Shrink mode a resized icon -- plus the 2D
+ * elements that hiding the client's icon takes with it.
  *
  * Icons come from sprite archive {@link SpriteID#HEADICONS_PRAYER} (440), indexed by
- * {@link HeadIcon#ordinal()}. The enum has exactly 15 values, matching that archive's file count,
- * and icons render correctly in game -- but the correspondence is inferred rather than documented,
- * and has not been checked prayer by prayer.
+ * {@link HeadIcon#ordinal()}. That correspondence is inferred rather than documented, though icons
+ * render correctly in game.
  *
- * Nothing in {@link #render(Graphics2D)} allocates: scaled images, ring colors and strokes are all
- * memoised and rebuilt only on config change.
+ * The icon and ring path allocates nothing: images, colors and strokes are memoised and rebuilt
+ * only on config change. Restored hitsplats allocate one GradientPaint per visible splat, bounded
+ * at four and only while splats are on screen.
  */
 @Slf4j
 public class OverheadScaleColorOverlay extends Overlay
 {
 	/** Ring outline. Softened black -- pure black reads as a hard edge at 1px. */
 	private static final Color RING_OUTLINE = new Color(0, 0, 0, 180);
+
+	private static final Color HITSPLAT_OUTLINE = new Color(0, 0, 0, 180);
+	private static final Stroke HITSPLAT_STROKE = new BasicStroke(1f);
+
+	/** Reused each frame rather than allocated per splat. */
+	private final Path2D.Double starPath = new Path2D.Double();
+	private final RestoredHitsplat[] liveSplats = new RestoredHitsplat[4];
+	private Font hitsplatFont;
 
 	/** Ring slots. Also index the color and stroke arrays. */
 	static final int MELEE = 0;
@@ -552,7 +561,7 @@ public class OverheadScaleColorOverlay extends Overlay
 	{
 		final int cycle = client.getGameCycle();
 
-		final RestoredHitsplat[] live;
+		final int count;
 		synchronized (hitsplats)
 		{
 			final int linger = config.hitsplatLingerMs() / 20;
@@ -561,7 +570,13 @@ public class OverheadScaleColorOverlay extends Overlay
 			{
 				return;
 			}
-			live = hitsplats.toArray(new RestoredHitsplat[0]);
+
+			int i = 0;
+			for (RestoredHitsplat h : hitsplats)
+			{
+				liveSplats[i++] = h;
+			}
+			count = i;
 		}
 
 		final Point anchor = Perspective.localToCanvas(client, lp,
@@ -576,32 +591,37 @@ public class OverheadScaleColorOverlay extends Overlay
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
 		final Font priorFont = graphics.getFont();
-		graphics.setFont(priorFont.deriveFont(Font.BOLD, 12f));
+		if (hitsplatFont == null)
+		{
+			hitsplatFont = priorFont.deriveFont(Font.BOLD, 12f);
+		}
+		graphics.setFont(hitsplatFont);
 		final FontMetrics fm = graphics.getFontMetrics();
 
 		// Spread multiple splats horizontally, centred on the player, like the client does.
 		final int w = config.hitsplatSize();
 		final int h = (int) Math.round(w * 0.9);
 		final int spacing = w - w / 5;
-		int cx = anchor.getX() - ((live.length - 1) * spacing) / 2;
+		int cx = anchor.getX() - ((count - 1) * spacing) / 2;
 
 		final Stroke priorStroke = graphics.getStroke();
-		graphics.setStroke(new BasicStroke(1f));
+		graphics.setStroke(HITSPLAT_STROKE);
 
-		for (RestoredHitsplat splat : live)
+		for (int i = 0; i < count; i++)
 		{
+			final RestoredHitsplat splat = liveSplats[i];
 			final int cy = anchor.getY();
 			final Shape star = fourPointStar(cx, cy, w / 2.0, h / 2.0);
 
 			// Shade top-to-bottom rather than filling flat, so the splat has the same sense of
 			// volume the client's own graphics have.
 			graphics.setPaint(new GradientPaint(
-				cx, cy - h / 2f, splat.highlight(),
-				cx, cy + h / 2f, splat.shadow()));
+				cx, cy - h / 2f, splat.highlight,
+				cx, cy + h / 2f, splat.shadow));
 			graphics.fill(star);
 
 			// setColor replaces the gradient paint for the outline.
-			graphics.setColor(new Color(0, 0, 0, 180));
+			graphics.setColor(HITSPLAT_OUTLINE);
 			graphics.draw(star);
 
 			final String text = Integer.toString(splat.amount);
@@ -643,13 +663,14 @@ public class OverheadScaleColorOverlay extends Overlay
 	 * deeply the sides pinch: lower is spikier, higher is rounder. 0.26 keeps the centre wide enough
 	 * for a three-digit number to sit legibly inside.
 	 */
-	private static Shape fourPointStar(double cx, double cy, double rx, double ry)
+	private Shape fourPointStar(double cx, double cy, double rx, double ry)
 	{
 		final double waist = 0.26;
 		final double wx = rx * waist;
 		final double wy = ry * waist;
 
-		final Path2D.Double p = new Path2D.Double();
+		final Path2D.Double p = starPath;
+		p.reset();
 		p.moveTo(cx, cy - ry);
 		p.quadTo(cx + wx, cy - wy, cx + rx, cy);
 		p.quadTo(cx + wx, cy + wy, cx, cy + ry);
