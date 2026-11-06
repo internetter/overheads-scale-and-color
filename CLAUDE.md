@@ -15,8 +15,8 @@ calls. Local player only.
 3. **Verify every API signature against the resolved jars before using it.** `build.gradle` uses
    `latest.release`, as the Plugin Hub requires — so the target moves. Find what it actually
    resolved to (`./gradlew dependencies --configuration compileClasspath | grep runelite:client`)
-   and check that jar with `javap`. Everything here was verified against **1.12.39**; re-check when
-   it moves. Treat any method named in prose as a hypothesis. If something does not exist, say so
+   and check that jar with `javap`. Everything here was verified against **1.13.6** (`javap`, plus a
+   clean `-Xlint:all` compile); re-check when it moves. Treat any method named in prose as a hypothesis. If something does not exist, say so
    and stop — do not substitute a call that merely compiles. *This is not hypothetical: the
    original design was built on `Client#setLocalPlayerHidden2D`, which does not exist.*
 4. **Clean up in `shutDown()`.** Unregister the render callback, remove the overlay, drop caches.
@@ -24,7 +24,8 @@ calls. Local player only.
    changes, restoring it becomes mandatory.
 5. **No per-frame allocation in the render path.** Images, ring colors and strokes are memoised and
    rebuilt only on config change. The one exception is a `GradientPaint` per visible hitsplat,
-   bounded at four and only while splats are on screen.
+   bounded at four and only while splats are on screen. (Splat text is built once per splat in
+   `RestoredHitsplat`, not per frame.)
 6. **Local player only.** Do not touch other players or NPCs. See `DESIGN.md` "Scope" — this is a
    Plugin Hub review boundary, not just a scope preference.
 
@@ -48,9 +49,11 @@ Two core options plus a ring section. Do not add more without a reason that surv
 | `mode` | enum | Ring only | Ring only, or Shrink icon |
 | `scale` | int 10–250 | 50 | ring size, or icon size in Shrink mode |
 | `heightOffset` | int | 70 | tuned on screen, not derived |
-| `hideOnlyWhilePraying` | bool | true | no suppression when no overhead is active |
+| `hideOnlyWhilePraying` | bool | true | no suppression when no overhead is active; when to suppress is decided only in `OverheadScaleColorOverlay.suppresses` |
 | `smoothScaling` | bool | true | Shrink mode only |
-| `restoreHealthBar` / `restoreHitsplats` / `restoreSkull` / `restoreOverheadChat` | bool | true | each with its own offset |
+| `restoreHealthBar` / `restoreHitsplats` / `restoreSkull` / `restoreOverheadChat` | bool | true | each with its own offset (`healthBarOffset`, `hitsplatOffset`, `skullOffset`, `chatOffset`) |
+| `hitsplatSize`, `hitsplatLingerMs` | int | 26, 600 | restored hitsplats only |
+| `chatColor` | Color | white | restored overhead chat only |
 | `ringEnabled`, `ringThickness`, `ringGap`, `ringOutline` | | | |
 | `palette` | enum | Standard | includes CVD-safe palettes |
 | `distinctStyles` | bool | false | solid / dashed / dotted per type |
@@ -149,7 +152,8 @@ that is what this section exists to prevent.
 |---|---|
 | No prayer active | Nothing drawn, everything vanilla |
 | Each protection prayer | Correct ring color; correct icon in Shrink mode |
-| Smite / Retribution / Redemption / combined | Correct icon, **no** ring |
+| Smite / Retribution / Redemption, Ring only | Vanilla icon, untouched; real health bar / hitsplats |
+| Smite / Retribution / Redemption, Shrink | Shrunk icon, **no** ring |
 | Taking damage while praying | Health bar, hitsplats and their timing all present |
 | Skulled while praying | Skull still visible |
 | Talking while praying | Overhead chat still visible |

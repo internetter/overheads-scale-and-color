@@ -23,15 +23,19 @@ client draws them all in one pass. The plugin draws them back, so nothing is los
 | Only hide while praying | on | Leaves everything untouched when no overhead prayer is active. |
 | Smooth scaling | on | Shrink mode. Off gives hard pixel edges. |
 | Restore health bar / hitsplats / PK skull / overhead chat | on | Draws back what hiding the icon removes. Each has its own height. |
+| Hitsplat size / linger | 26 px / 600 ms | Size of restored hitsplats, and extra time they stay on screen. |
+| Overhead chat color | white | Color of restored overhead chat. |
 | **Ring** | | |
 | Show ring | on | |
-| Thickness / Gap | 2 / 2 | Ring weight and size. |
+| Thickness / Gap | 2 / 2 | Ring line weight, and space between ring and icon. |
 | Dark outline | on | Keeps the ring visible against grass, water and sand. |
 | Color palette | Standard | See below. |
 | Distinct ring styles | off | Melee solid, ranged dashed, magic dotted. |
 
-Rings are drawn for Protect from Melee, Missiles and Magic, and their Deflect equivalents. Smite,
-Retribution, Redemption, Wrath, Soul Split and the combined overheads are drawn without one.
+Rings are drawn for Protect from Melee, Missiles and Magic, and their Deflect equivalents. In
+**Ring only** mode those are the only overheads the plugin touches: Smite, Retribution, Redemption
+and the rest show exactly as they normally would. In **Shrink icon** mode every overhead is shrunk,
+and the non-protection ones are drawn without a ring.
 
 ## Colors
 

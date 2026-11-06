@@ -6,11 +6,11 @@ import net.runelite.api.HitsplatID;
 /**
  * One hitsplat the 2D suppression removed, held until the client says it would have expired.
  *
- * Unlike the health bar, the client does not hand us its hitsplat graphics -- there is no equivalent
- * of PostHealthBarConfig, and the Hitmark sprite group is indexed by something other than the
- * hitsplat type. These are therefore drawn rather than reproduced. The colours below follow what
- * each type actually looks like in game, so a poison hit reads as poison and a max hit reads as a
- * max hit, but they are this plugin's rendition rather than the client's own pixels.
+ * Unlike the health bar, the client's hitsplat graphics cannot be loaded by type -- the Hitmark
+ * sprite group is indexed by something other than the hitsplat type. These are therefore drawn
+ * rather than reproduced. The colours below follow what each type actually looks like in game, so a
+ * poison hit reads as poison and a max hit reads as a max hit, but they are this plugin's rendition
+ * rather than the client's own pixels.
  */
 final class RestoredHitsplat
 {
@@ -39,7 +39,8 @@ final class RestoredHitsplat
 	final int type;
 	final int expiresOnCycle;
 
-	/** Derived once here rather than per frame, since they depend only on the type. */
+	/** Derived once here rather than per frame, since they never change. */
+	final String text;
 	final Color highlight;
 	final Color shadow;
 
@@ -48,6 +49,7 @@ final class RestoredHitsplat
 		this.amount = amount;
 		this.type = type;
 		this.expiresOnCycle = expiresOnCycle;
+		this.text = Integer.toString(amount);
 
 		final Color base = color();
 		this.highlight = shift(base, 0.42f);

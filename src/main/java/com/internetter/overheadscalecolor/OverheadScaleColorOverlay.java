@@ -19,7 +19,6 @@ import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.HealthBarConfig;
 import net.runelite.api.HeadIcon;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
@@ -86,20 +85,17 @@ public class OverheadScaleColorOverlay extends Overlay
 	private int missingLogged;
 
 	/**
-	 * The client's own health bar definition, captured from PostHealthBarConfig. Suppressing the 2D
-	 * pass takes the real bar with it, so in Shrink mode we redraw one using these exact sprites.
-	 * Volatile because the event arrives off the client thread.
+	 * The standard 30px player health bar, loaded straight from the sprite cache by ID.
+	 *
+	 * This used to be captured from PostHealthBarConfig, but that event fires for every bar the
+	 * client draws -- NPCs, bosses (60-160px variants), shield / ice / heat / blood bars -- and
+	 * carries no actor. Whatever bar was drawn last leaked onto the player, so the bar would grow
+	 * or change colour after fighting something with a non-standard one. Players always get the
+	 * standard bar, so loading it by ID is both simpler and correct.
 	 */
-	private volatile HealthBarConfig healthBarConfig;
 	private BufferedImage healthBarFront;
 	private BufferedImage healthBarBack;
-	private HealthBarConfig healthBarCachedFrom;
 	private boolean healthBarFallbackLogged;
-
-	void setHealthBarConfig(HealthBarConfig cfg)
-	{
-		this.healthBarConfig = cfg;
-	}
 
 	/**
 	 * Hitsplats recorded while suppression is hiding the client's own. Bounded at four, which is what
@@ -171,6 +167,9 @@ public class OverheadScaleColorOverlay extends Overlay
 			scaledCache.clear();
 			ringStateValid = false;
 			missingLogged = 0;
+			healthBarFront = null;
+			healthBarBack = null;
+			healthBarFallbackLogged = false;
 		}
 		else if (invalidatePending)
 		{
@@ -198,38 +197,38 @@ public class OverheadScaleColorOverlay extends Overlay
 		}
 
 		final HeadIcon icon = local.getOverheadIcon();
-		final boolean shrink = config.mode() == OverheadMode.SHRINK;
+		final OverheadMode mode = config.mode();
 
-		// Both modes hide the client's icon, so both owe it the rest of the 2D pass back. This is not
-		// the same condition as "an overhead icon is showing".
-		final boolean suppressing = !config.hideOnlyWhilePraying() || icon != null;
+		// Must be the same decision the plugin's draw veto makes, or a restored element would double
+		// up with the client's own (or neither would draw). Hence the shared method.
+		if (!suppresses(icon, mode, config.hideOnlyWhilePraying()))
+		{
+			return null;
+		}
 
 		if (icon != null)
 		{
-			drawIcon(graphics, local, lp, icon, shrink);
+			drawIcon(graphics, local, lp, icon, mode == OverheadMode.SHRINK);
 		}
 
-		if (suppressing)
+		if (config.restoreHealthBar())
 		{
-			if (config.restoreHealthBar())
-			{
-				drawHealthBar(graphics, local, lp);
-			}
+			drawHealthBar(graphics, local, lp);
+		}
 
-			if (config.restoreHitsplats())
-			{
-				drawHitsplats(graphics, local, lp);
-			}
+		if (config.restoreHitsplats())
+		{
+			drawHitsplats(graphics, local, lp);
+		}
 
-			if (config.restoreSkull())
-			{
-				drawSkull(graphics, local, lp);
-			}
+		if (config.restoreSkull())
+		{
+			drawSkull(graphics, local, lp);
+		}
 
-			if (config.restoreOverheadChat())
-			{
-				drawOverheadChat(graphics, local, lp);
-			}
+		if (config.restoreOverheadChat())
+		{
+			drawOverheadChat(graphics, local, lp);
 		}
 
 		return null;
@@ -468,6 +467,28 @@ public class OverheadScaleColorOverlay extends Overlay
 	}
 
 	/**
+	 * Whether the client's 2D pass for the local player is vetoed (and so whether this overlay
+	 * redraws what that takes with it). The plugin's draw veto and {@link #render} both call this, so
+	 * the two can never disagree.
+	 *
+	 * Ring only mode suppresses only for overheads that get a ring. Smite, Retribution, Redemption
+	 * and the rest have nothing to replace them with, so hiding them would just make them vanish;
+	 * they are left entirely to the client instead, vanilla in every respect. Shrink mode has a
+	 * replacement for every icon, so it suppresses for all of them.
+	 *
+	 * @param icon the active overhead, or null for none
+	 */
+	static boolean suppresses(HeadIcon icon, OverheadMode mode, boolean hideOnlyWhilePraying)
+	{
+		if (icon == null)
+		{
+			return !hideOnlyWhilePraying;
+		}
+
+		return mode == OverheadMode.SHRINK || ringSlotFor(icon) != NO_RING;
+	}
+
+	/**
 	 * Which ring slot an icon uses, or -1 for icons that render ringless.
 	 *
 	 * Deflect variants share their protection-prayer equivalent's slot. Combined overheads and the
@@ -509,18 +530,18 @@ public class OverheadScaleColorOverlay extends Overlay
 			return;
 		}
 
-		final HealthBarConfig cfg = healthBarConfig;
-		if (cfg != null && cfg != healthBarCachedFrom)
+		// getSprite returns null until the client's sprite cache is ready, so retry each frame until
+		// both load; after that this is a pair of null checks.
+		if (healthBarFront == null)
 		{
-			healthBarCachedFrom = cfg;
-			healthBarFront = spriteToImage(cfg.getHealthBarFrontSprite());
-			healthBarBack = spriteToImage(cfg.getHealthBarBackSprite());
+			healthBarFront = spriteManager.getSprite(SpriteID.StandardHealth30.FRONT, 0);
+		}
+		if (healthBarBack == null)
+		{
+			healthBarBack = spriteManager.getSprite(SpriteID.StandardHealth30.BACK, 0);
 		}
 
-		// PostHealthBarConfig fires when the client is about to draw a health bar -- which is the
-		// very thing being vetoed. If suppression started before the client ever drew one, the event
-		// never arrives and we have no sprites. Falling back to a drawn bar means a bar always shows;
-		// it is swapped for the client's own sprites the moment the event does arrive.
+		// Sprites not loaded yet: draw a plain bar of the same size so one always shows.
 		if (healthBarFront == null || healthBarBack == null)
 		{
 			if (!healthBarFallbackLogged)
@@ -624,7 +645,7 @@ public class OverheadScaleColorOverlay extends Overlay
 			graphics.setColor(HITSPLAT_OUTLINE);
 			graphics.draw(star);
 
-			final String text = Integer.toString(splat.amount);
+			final String text = splat.text;
 			final int tx = cx - fm.stringWidth(text) / 2;
 			final int ty = cy + fm.getAscent() / 2 - 1;
 
@@ -701,24 +722,10 @@ public class OverheadScaleColorOverlay extends Overlay
 		final int y = centre.getY() - h / 2;
 		final int filled = Math.max(0, Math.min(w, (int) Math.round((double) w * ratio / scale)));
 
-		graphics.setColor(new Color(0x7F0000));
+		graphics.setColor(Color.RED);
 		graphics.fillRect(x, y, w, h);
-		graphics.setColor(new Color(0x00B000));
+		graphics.setColor(Color.GREEN);
 		graphics.fillRect(x, y, filled, h);
-		graphics.setColor(new Color(0, 0, 0, 190));
-		graphics.drawRect(x, y, w, h);
-	}
-
-	private static BufferedImage spriteToImage(net.runelite.api.SpritePixels sprite)
-	{
-		try
-		{
-			return sprite == null ? null : sprite.toBufferedImage();
-		}
-		catch (RuntimeException e)
-		{
-			return null;
-		}
 	}
 
 	private BufferedImage nativeSprite(HeadIcon icon)

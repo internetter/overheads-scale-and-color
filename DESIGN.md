@@ -44,7 +44,7 @@ still beneath interfaces.
 
 | Element | Source | Fidelity |
 |---|---|---|
-| Health bar | `PostHealthBarConfig` sprites | exact, with a plain fallback if the event has not fired |
+| Health bar | `SpriteID.StandardHealth30` | exact, with a plain fallback until the sprites load |
 | PK skull | `SpriteID.HEADICONS_PK` | exact |
 | Overhead chat | `getOverheadText()`, game font via `FontManager` | exact typeface; chat effects render as plain text |
 | Hitsplats | `HitsplatApplied` | drawn, not reproduced — see below |
@@ -52,15 +52,15 @@ still beneath interfaces.
 Timing comes from the client in every case: `getHealthRatio()` returns -1 when no bar would show,
 and hitsplats expire on `getDisappearsOnGameCycle()`.
 
-**Hitsplats are the one approximation.** There is no `PostHealthBarConfig` equivalent for them, and
-the `SpriteID.Hitmark` group is indexed by something other than the hitsplat type, so the client's
-own graphics cannot be resolved. They are drawn as four-point stars coloured per type, covering all
-33 types in `HitsplatID`. Unknown types fall back to the damage/zero convention rather than an
+**Hitsplats are the one approximation.** The `SpriteID.Hitmark` group is indexed by something
+other than the hitsplat type, so the client's own graphics cannot be resolved. They are drawn as
+four-point stars coloured per type, covering all 34 types in `HitsplatID`. Unknown types fall back to the damage/zero convention rather than an
 invented colour.
 
-The health bar restore has a chicken-and-egg: `PostHealthBarConfig` fires when the client is about
-to draw a bar, which is the thing being vetoed. If suppression starts first the event never arrives,
-so a plainly drawn bar is used until it does.
+The health bar is loaded by ID, not captured from `PostHealthBarConfig`. That event fires for
+every bar the client draws (NPCs, bosses' 60–160px bars, shield / ice / heat / blood bars) and
+carries no actor, so capturing it put whichever bar was drawn last onto the player, making the bar
+longer or a different colour after some fights. Players always get the standard 30px bar.
 
 ## Accessibility
 
@@ -73,6 +73,20 @@ colour, which is the only cue that works under achromatopsia.
 
 Rings are drawn for the three protection prayers and their Deflect equivalents. Combined overheads
 and the non-protection prayers render ringless rather than being assigned an invented colour.
+
+### When the client's icon is hidden
+
+Decided in one place, `OverheadScaleColorOverlay.suppresses`, which both the draw veto and the
+overlay's restores call, so the two cannot disagree (a mismatch would double or drop the health bar).
+
+| Active overhead | Ring only | Shrink icon |
+|---|---|---|
+| Protection / Deflect | hidden, ring drawn | hidden, shrunk icon + ring |
+| Smite, Retribution, Redemption, combined, etc. | **left to the client** | hidden, shrunk icon |
+| None | hidden only if *Only hide while praying* is off | same |
+
+Ring only has nothing to replace a non-protection overhead with, so hiding one would just make it
+vanish. Leaving it to the client also means its health bar and hitsplats are the client's own.
 
 ## Scope
 
@@ -93,4 +107,5 @@ So running alongside Entity Hider is harmless and idempotent — no last-writer-
 
 - `build=standard`, `runeLiteVersion = 'latest.release'`.
 - No reflection, no network calls, no input injection, no menu changes.
-- Verified against 1.12.39. API details here should be re-checked with `javap` when that moves.
+- Compiled against 1.13.6 with no deprecation warnings; every `HeadIcon` and `HitsplatID` value in
+  that release is handled. API details here should be re-checked with `javap` when it moves.

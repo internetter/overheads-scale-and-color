@@ -10,3 +10,4 @@ out/
 nbactions.xml
 nb-configuration.xml
 nbproject/
+.claude/

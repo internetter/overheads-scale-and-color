@@ -29,9 +29,10 @@ public interface OverheadScaleColorConfig extends Config
 		keyName = "mode",
 		name = "Mode",
 		description =
-			"Ring only: hides the prayer icon and shows just the coloured ring, which becomes the indicator itself. "
-				+ "Shrink icon: hides the prayer icon and draws a smaller copy of it inside the ring. Either way the client's "
-				+ "own icon is hidden, which also hides your health bar, hitsplats and skull -- the plugin draws those back."
+			"Ring only: replaces the Protect from Melee / Missiles / Magic icon with just the coloured ring. Other overheads "
+				+ "(Smite, Retribution, Redemption) are left exactly as normal. "
+				+ "Shrink icon: replaces every overhead with a smaller copy, ringed for the protection prayers. While the client's "
+				+ "own icon is hidden, so are your health bar, hitsplats, skull and overhead chat -- the plugin draws those back."
 	)
 	default OverheadMode mode()
 	{
@@ -68,9 +69,21 @@ public interface OverheadScaleColorConfig extends Config
 		name = "Only hide while praying",
 		description =
 			"Limits the hiding to the moments an overhead prayer is actually active, so everything is normal "
-				+ "the rest of the time. Turn it OFF only if you find the switch-over distracting."
+				+ "the rest of the time. Turn it OFF only if you find the switch-over distracting. In Ring only mode, "
+				+ "Smite / Retribution / Redemption are always left normal either way."
 	)
 	default boolean hideOnlyWhilePraying()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 4,
+		keyName = "smoothScaling",
+		name = "Smooth scaling",
+		description = "Shrink mode. Bilinear downscaling; turn off for nearest-neighbour, which keeps hard pixel edges."
+	)
+	default boolean smoothScaling()
 	{
 		return true;
 	}
@@ -211,17 +224,6 @@ public interface OverheadScaleColorConfig extends Config
 		return Color.WHITE;
 	}
 
-	@ConfigItem(
-		position = 4,
-		keyName = "smoothScaling",
-		name = "Smooth scaling",
-		description = "Shrink mode. Bilinear downscaling; turn off for nearest-neighbour, which keeps hard pixel edges."
-	)
-	default boolean smoothScaling()
-	{
-		return true;
-	}
-
 	// ---- Ring ----
 	//
 	// Only the three protection prayers and their Deflect equivalents get a ring. Combined
@@ -258,7 +260,7 @@ public interface OverheadScaleColorConfig extends Config
 		position = 23,
 		keyName = "ringGap",
 		name = "Gap",
-		description = "Ring size. In Ring only mode this is what makes the ring bigger or smaller.",
+		description = "Space between the ring and the icon, in pixels. In Ring only mode it adds to the size set by Scale %.",
 		section = RING_SECTION
 	)
 	@Range(min = 0, max = 24)

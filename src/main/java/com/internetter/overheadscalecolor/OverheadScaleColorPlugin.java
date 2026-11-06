@@ -2,12 +2,10 @@ package com.internetter.overheadscalecolor;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.Renderable;
 import net.runelite.api.events.HitsplatApplied;
-import net.runelite.api.events.PostHealthBarConfig;
 import net.runelite.client.callback.RenderCallback;
 import net.runelite.client.callback.RenderCallbackManager;
 import net.runelite.client.config.ConfigManager;
@@ -18,22 +16,20 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 /**
- * Suppresses the client's native overhead icon for the local player and redraws it scaled, with an
- * optional colored ring. See DESIGN.md for the reasoning and the rejected alternatives.
+ * Suppresses the client's native overhead icon for the local player and replaces it with a colored
+ * ring or a resized copy of the icon. See DESIGN.md for the reasoning and the rejected alternatives.
  *
  * The client offers no way to resize an overhead icon, and no way to blank one either --
  * {@code Player} exposes {@code getOverheadIcon()} with no setter. Nor is there a hide flag:
- * {@code Client} has no hide/hidden methods at all in 1.12.38, contrary to a good deal of older
- * material referencing {@code setLocalPlayerHidden2D}. The only available mechanism is a draw veto,
- * which is what the bundled Entity Hider uses (still via the now-deprecated
- * {@code Hooks.RenderableDrawListener}; this uses the current {@link RenderCallback} /
- * {@link RenderCallbackManager} pair that {@code Hooks} delegates to).
+ * {@code Client} has no hide/hidden methods, contrary to a good deal of older material referencing
+ * {@code setLocalPlayerHidden2D}. The only available mechanism is a draw veto, which is what the
+ * bundled Entity Hider uses (via the deprecated {@code Hooks.RenderableDrawListener}; this uses the
+ * current {@link RenderCallback} / {@link RenderCallbackManager} pair that {@code Hooks} delegates to).
  */
-@Slf4j
 @PluginDescriptor(
 	name = "Overhead Scale & Color",
-	description = "Cosmetic only. Shrinks your own overhead prayer icon and rings it in a color by prayer type.",
-	tags = {"overhead", "prayer", "icon", "scale", "color", "colour", "accessibility"}
+	description = "Cosmetic only. Replaces your own overhead prayer icon with a colored ring, or a smaller version of the icon.",
+	tags = {"overhead", "prayer", "icon", "cosmetic", "scale", "color", "colour", "accessibility"}
 )
 public class OverheadScaleColorPlugin extends Plugin
 {
@@ -80,18 +76,6 @@ public class OverheadScaleColorPlugin extends Plugin
 		renderCallbackManager.unregister(drawCallback);
 		overlayManager.remove(overlay);
 		overlay.invalidateAll();
-	}
-
-	/**
-	 * The client publishes its health bar definition here, including the real front and back
-	 * sprites it draws with. Capturing it lets the overlay redraw a bar that is pixel-identical
-	 * to vanilla rather than an approximation, which matters because suppression hides the real
-	 * one whenever the icon is being replaced.
-	 */
-	@Subscribe
-	public void onPostHealthBarConfig(PostHealthBarConfig event)
-	{
-		overlay.setHealthBarConfig(event.getHealthBarConfig());
 	}
 
 	/**
@@ -151,13 +135,9 @@ public class OverheadScaleColorPlugin extends Plugin
 			return true;
 		}
 
-		// Restore everything the moment no overhead is active, so the cost is paid only while
-		// there is actually an icon to replace.
-		if (config.hideOnlyWhilePraying() && local.getOverheadIcon() == null)
-		{
-			return true;
-		}
-
-		return false;
+		// Shared with the overlay so the veto and the redraw can never disagree. In short: veto only
+		// while there is something to replace the icon with.
+		return !OverheadScaleColorOverlay.suppresses(local.getOverheadIcon(), config.mode(),
+			config.hideOnlyWhilePraying());
 	}
 }
